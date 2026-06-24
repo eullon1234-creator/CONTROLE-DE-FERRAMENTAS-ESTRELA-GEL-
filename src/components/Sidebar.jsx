@@ -10,6 +10,7 @@ import {
   Moon,
   Hammer
 } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 const Sidebar = ({ currentPage, setCurrentPage, theme, toggleTheme, user, handleLogout }) => {
   const menuItems = [
@@ -57,7 +58,7 @@ const Sidebar = ({ currentPage, setCurrentPage, theme, toggleTheme, user, handle
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
         }}>
           <img 
-            src="/src/assets/logo.png" 
+            src={logoImg} 
             alt="GEL Logo" 
             style={{ 
               maxHeight: '40px',
