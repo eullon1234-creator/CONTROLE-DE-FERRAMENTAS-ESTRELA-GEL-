@@ -12,14 +12,13 @@ import fs from 'fs';
 import path from 'path';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAAzzQyzRnGhMmUQtlbSqOm1yVs-s-haP4",
-  authDomain: "controle-de-epi-pro.firebaseapp.com",
-  databaseURL: "https://controle-de-epi-pro-default-rtdb.firebaseio.com",
-  projectId: "controle-de-epi-pro",
-  storageBucket: "controle-de-epi-pro.firebasestorage.app",
-  messagingSenderId: "486036426921",
-  appId: "1:486036426921:web:209b04ca084b73d7c319b8",
-  measurementId: "G-LBLMRGK770"
+  apiKey: "AIzaSyBty7Tz3RQ8bScCw4oH2b_iqA6FPc6W0t8",
+  authDomain: "controle-de-ferramentas-efde4.firebaseapp.com",
+  projectId: "controle-de-ferramentas-efde4",
+  storageBucket: "controle-de-ferramentas-efde4.firebasestorage.app",
+  messagingSenderId: "313513963680",
+  appId: "1:313513963680:web:52b4df54cfd88de51899c5",
+  measurementId: "G-XNJHJN417B"
 };
 
 const COLLECTIONS = {
