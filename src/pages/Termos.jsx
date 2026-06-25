@@ -825,6 +825,11 @@ const Termos = ({ onPrintTerm }) => {
                         }`}>
                           {term.status}
                         </span>
+                        {term.osVinculada && (
+                          <div style={{ fontSize: '0.68rem', color: 'var(--color-warning)', fontWeight: 700, marginTop: '3px', fontFamily: 'monospace' }}>
+                            OS: {term.osVinculada}
+                          </div>
+                        )}
                       </td>
                       <td>{term.retDateObj ? term.retDateObj.toLocaleDateString('pt-BR') : <span style={{ color: 'var(--text-muted)' }}>-</span>}</td>
                       <td>

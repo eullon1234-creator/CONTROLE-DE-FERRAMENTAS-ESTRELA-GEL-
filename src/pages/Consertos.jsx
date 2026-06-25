@@ -7,7 +7,10 @@ import {
   updateDoc, 
   deleteDoc,
   doc, 
-  Timestamp 
+  Timestamp,
+  getDocs,
+  query,
+  where
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -172,7 +175,7 @@ const Consertos = ({ onPrintOS }) => {
       // 1. Add OS document
       await addDoc(collection(db, COLLECTIONS.OS_CONSERTO), newOs);
 
-      // 2. If tag is provided and equipment exists, mark equipment as "Em Manutenção"
+      // 2. Se tem TAG, marca Equipamento como "Em Manutenção"
       if (newOs.tag) {
         const matchedEq = equipamentos.find(eq => eq.tag?.toUpperCase() === newOs.tag.toUpperCase() || eq.id?.toUpperCase() === newOs.tag.toUpperCase());
         if (matchedEq) {
@@ -182,9 +185,37 @@ const Consertos = ({ onPrintOS }) => {
             atualizadoEm: Timestamp.now()
           });
         }
-      }
 
-      showToast('Ordem de Serviço criada com sucesso!');
+        // 3. Busca Termo ATIVO com esse TAG e muda para "EM CONCERTO"
+        try {
+          const termosRef = collection(db, COLLECTIONS.TERMOS);
+          const qTermos = query(
+            termosRef,
+            where('tag', '==', newOs.tag.toUpperCase()),
+            where('status', '==', 'ATIVO')
+          );
+          const termosSnap = await getDocs(qTermos);
+          // Atualiza todos os termos ativos com esse TAG
+          const updates = termosSnap.docs.map(termoDoc =>
+            updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+              status: 'EM CONCERTO',
+              osVinculada: newOs.nOS,
+              dataDevolucao: Timestamp.now()
+            })
+          );
+          await Promise.all(updates);
+          if (termosSnap.size > 0) {
+            showToast(`OS criada! Termo de ${termosSnap.docs[0].data().colaboradorNome} atualizado para "EM CONCERTO"`);
+          } else {
+            showToast('Ordem de Serviço criada com sucesso!');
+          }
+        } catch (termErr) {
+          console.warn('Aviso ao atualizar Termo:', termErr);
+          showToast('Ordem de Serviço criada com sucesso!');
+        }
+      } else {
+        showToast('Ordem de Serviço criada com sucesso!');
+      }
       setIsAddModalOpen(false);
       setAddFormData({
         nOS: '',
@@ -223,7 +254,7 @@ const Consertos = ({ onPrintOS }) => {
         observacao: returnFormData.observacao.trim() ? `${selectedOs.observacao ? selectedOs.observacao + ' | ' : ''}Retorno: ${returnFormData.observacao.trim()}` : (selectedOs.observacao || '')
       });
 
-      // 2. Automatically make equipment "Disponível" again if tag is provided
+      // 2. Marca equipamento como "Disponível" novamente
       if (selectedOs.tag) {
         const matchedEq = equipamentos.find(eq => eq.tag?.toUpperCase() === selectedOs.tag.toUpperCase() || eq.id?.toUpperCase() === selectedOs.tag.toUpperCase());
         if (matchedEq) {
@@ -233,9 +264,36 @@ const Consertos = ({ onPrintOS }) => {
             atualizadoEm: Timestamp.now()
           });
         }
-      }
 
-      showToast('Retorno de conserto registrado com sucesso!');
+        // 3. Busca Termos com status "EM CONCERTO" para esse TAG e reverte para "ATIVO"
+        try {
+          const termosRef = collection(db, COLLECTIONS.TERMOS);
+          const qTermos = query(
+            termosRef,
+            where('tag', '==', selectedOs.tag.toUpperCase()),
+            where('status', '==', 'EM CONCERTO')
+          );
+          const termosSnap = await getDocs(qTermos);
+          const updates = termosSnap.docs.map(termoDoc =>
+            updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+              status: 'ATIVO',
+              dataDevolucao: null,
+              osVinculada: selectedOs.nOS
+            })
+          );
+          await Promise.all(updates);
+          if (termosSnap.size > 0) {
+            showToast(`Retorno registrado! Termo de ${termosSnap.docs[0].data().colaboradorNome} reativado como "ATIVO"`);
+          } else {
+            showToast('Retorno de conserto registrado com sucesso!');
+          }
+        } catch (termErr) {
+          console.warn('Aviso ao restaurar Termo:', termErr);
+          showToast('Retorno de conserto registrado com sucesso!');
+        }
+      } else {
+        showToast('Retorno de conserto registrado com sucesso!');
+      }
       setIsReturnModalOpen(false);
       setSelectedOs(null);
       setReturnFormData({
