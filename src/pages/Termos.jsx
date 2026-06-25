@@ -10,7 +10,8 @@ import {
   query,
   orderBy,
   limit,
-  getDocs
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -144,6 +145,76 @@ const Termos = ({ onPrintTerm }) => {
       unsubscribeCollabs();
     };
   }, []);
+
+  // Self-healing database: automatically fix Termos in 'EM CONCERTO' that have no active OS (meaning OS was deleted)
+  useEffect(() => {
+    if (loading || termos.length === 0) return;
+    
+    const selfHealOrphanTermos = async () => {
+      // Find all terms that are 'EM CONCERTO'
+      const repairTerms = termos.filter(t => t.status === 'EM CONCERTO');
+      if (repairTerms.length === 0) return;
+
+      try {
+        const osCol = collection(db, COLLECTIONS.OS_CONSERTO);
+        const osSnap = await getDocs(osCol);
+        const activeOSNumbers = new Set(osSnap.docs.map(doc => doc.data().nOS));
+
+        for (const term of repairTerms) {
+          // If the linked OS does not exist in activeOSNumbers
+          const osNum = term.osVinculada;
+          const isOrphan = !osNum || !activeOSNumbers.has(osNum);
+          
+          if (isOrphan) {
+            console.log(`Fixing orphan Termo ${term.id} (Material: ${term.descricaoMaterial}, Tag: ${term.tag || 'none'})`);
+            
+            // Revert Termo to ATIVO
+            await updateDoc(doc(db, COLLECTIONS.TERMOS, term.id), {
+              status: 'ATIVO',
+              dataDevolucao: null,
+              osVinculada: null
+            });
+
+            // Adjust equipment if it is currently 'Em Manutenção' and was linked
+            if (term.tag) {
+              const eqRef = doc(db, COLLECTIONS.EQUIPAMENTOS, term.tag.toUpperCase().trim());
+              try {
+                const eqSnap = await getDoc(eqRef);
+                if (eqSnap.exists() && eqSnap.data().status === 'Em Manutenção') {
+                  await updateDoc(eqRef, {
+                    status: 'Disponível',
+                    atualizadoEm: Timestamp.now()
+                  });
+                }
+              } catch (eqErr) {
+                console.warn(`Could not fix equipment status for tag ${term.tag}:`, eqErr);
+              }
+            }
+
+            // Restore Collaborator counts
+            if (term.colaboradorId) {
+              const collabRef = doc(db, COLLECTIONS.COLABORADORES, term.colaboradorId);
+              const collabSnap = await getDoc(collabRef);
+              if (collabSnap.exists()) {
+                const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+                const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+                const quantidade = term.quantidade || 1;
+                await updateDoc(collabRef, {
+                  totalItensAtivos: currentAtivos + quantidade,
+                  totalItensDevolvidos: Math.max(0, currentDevolvidos - quantidade),
+                  atualizadoEm: Timestamp.now()
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error during self-healing check:", err);
+      }
+    };
+
+    selfHealOrphanTermos();
+  }, [termos, loading]);
 
   // Autocomplete Filter Logic
   useEffect(() => {
