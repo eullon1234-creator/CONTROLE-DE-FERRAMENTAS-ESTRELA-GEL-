@@ -646,7 +646,21 @@ const Consertos = ({ onPrintOS }) => {
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                             {/* Print OS button (always visible) */}
                             <button
-                              onClick={() => onPrintOS && onPrintOS(os)}
+                              onClick={() => {
+                                if (!onPrintOS) return;
+                                // Busca marca/modelo do equipamento pelo TAG
+                                const matchedEq = equipamentos.find(
+                                  eq =>
+                                    (eq.tag || '').toUpperCase() === (os.tag || '').toUpperCase() ||
+                                    (eq.id || '').toUpperCase() === (os.tag || '').toUpperCase()
+                                );
+                                const osFull = {
+                                  ...os,
+                                  marcaModelo: matchedEq?.marcaModelo || os.marcaModelo || '',
+                                  numSerie: matchedEq?.numSerie || os.numSerie || '',
+                                };
+                                onPrintOS(osFull);
+                              }}
                               className="btn btn-secondary"
                               style={{ padding: '6px', color: 'var(--color-primary-light)', borderColor: 'rgba(59, 130, 246, 0.2)' }}
                               title="Imprimir Ordem de Serviço"
