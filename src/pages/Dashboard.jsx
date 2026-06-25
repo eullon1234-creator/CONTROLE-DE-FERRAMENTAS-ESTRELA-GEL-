@@ -7,7 +7,8 @@ import {
   AlertTriangle, 
   Wrench, 
   TrendingUp,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -20,6 +21,17 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { exportFullReport } from '../utils/exportExcel';
+
+// Fallback classifier for records that don't have a saved 'grupo' field
+const classifyGroup = (desc) => {
+  const d = String(desc || '').toLowerCase();
+  if (d.includes('bateria') || d.includes('carregador')) return 'Bateria / Acessório';
+  if (d.includes('pneumat') || d.includes('pneumá')) return 'Pneumática';
+  if (d.includes('solde') || d.includes('solda') || d.includes('compressor') || d.includes('gerador') || d.includes('bomba')) return 'Máquina';
+  if (d.includes('furadeira') || d.includes('lixadeira') || d.includes('esmerilhadeira') || d.includes('serra') || d.includes('martelete') || d.includes('soprador') || d.includes('parafusadeira') || d.includes('tupia') || d.includes('plaina') || d.includes('politriz') || d.includes('gsh') || d.includes('gsb')) return 'Elétrica';
+  return 'Ferramenta Manual';
+};
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -35,6 +47,13 @@ const Dashboard = () => {
   const [chartDataCollaborators, setChartDataCollaborators] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Snapshot data kept in state for Excel export
+  const [allTermos, setAllTermos] = useState([]);
+  const [allEquipamentos, setAllEquipamentos] = useState([]);
+  const [allColaboradores, setAllColaboradores] = useState([]);
+  const [allOS, setAllOS] = useState([]);
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => {
     // 1. Listen to Termos
     const qTermos = query(collection(db, COLLECTIONS.TERMOS));
@@ -48,6 +67,7 @@ const Dashboard = () => {
       const groupCounts = {};
       const movements = [];
 
+      const allList = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
         total++;
@@ -61,10 +81,17 @@ const Dashboard = () => {
           const collab = data.colaboradorNome || 'Não Especificado';
           collabCounts[collab] = (collabCounts[collab] || 0) + (Number(data.quantidade) || 1);
 
-          // Groups
-          const group = data.grupo || 'Outros'; // If denormalized on creation, otherwise default
+          // Groups — BUG FIX: use classifyGroup as fallback for records without saved 'grupo'
+          const group = data.grupo || classifyGroup(data.descricaoMaterial);
           groupCounts[group] = (groupCounts[group] || 0) + (Number(data.quantidade) || 1);
         }
+
+        allList.push({
+          id: doc.id,
+          ...data,
+          dateObj: data.dataEntrada?.toDate() || new Date(0),
+          retDateObj: data.dataDevolucao?.toDate() || null
+        });
 
         // Keep all for sorting recent movements
         movements.push({
@@ -77,6 +104,7 @@ const Dashboard = () => {
       // Sort and set recent movements (last 5)
       movements.sort((a, b) => b.dateObj - a.dateObj);
       setRecentMovements(movements.slice(0, 5));
+      setAllTermos(allList);
 
       // Build Top Collaborators Chart Data
       const topCollabs = Object.entries(collabCounts)
@@ -103,19 +131,64 @@ const Dashboard = () => {
     // 2. Listen to Equipamentos Catalog
     const qEq = query(collection(db, COLLECTIONS.EQUIPAMENTOS));
     const unsubscribeEq = onSnapshot(qEq, (snapshot) => {
+      const eqList = [];
+      snapshot.forEach(doc => eqList.push({ id: doc.id, ...doc.data() }));
+      setAllEquipamentos(eqList);
       setStats(prev => ({
         ...prev,
         totalEquipamentos: snapshot.size
       }));
     });
 
+    // 3. Listen to Colaboradores
+    const unsubscribeCollabs = onSnapshot(collection(db, COLLECTIONS.COLABORADORES), (snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setAllColaboradores(list);
+    });
+
+    // 4. Listen to OS / Consertos
+    const unsubscribeOS = onSnapshot(collection(db, COLLECTIONS.OS_CONSERTO), (snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        list.push({
+          id: doc.id,
+          ...data,
+          dateOSObj: data.dataOS?.toDate() || null,
+          dateEnvioObj: data.dataEnvio?.toDate() || null,
+          dateRetornoObj: data.dataRetorno?.toDate() || null,
+        });
+      });
+      setAllOS(list);
+    });
+
     return () => {
       unsubscribeTermos();
       unsubscribeEq();
+      unsubscribeCollabs();
+      unsubscribeOS();
     };
   }, []);
 
   const COLORS = ['#3b82f6', '#eab308', '#10b981', '#a855f7', '#f97316', '#06b6d4'];
+
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      exportFullReport({
+        termos: allTermos,
+        equipamentos: allEquipamentos,
+        colaboradores: allColaboradores,
+        osList: allOS,
+      });
+    } catch (err) {
+      console.error('Erro ao exportar:', err);
+      alert('Erro ao gerar relatório: ' + err.message);
+    } finally {
+      setTimeout(() => setExporting(false), 1500);
+    }
+  };
 
   if (loading) {
     return (
@@ -128,11 +201,23 @@ const Dashboard = () => {
   return (
     <div style={{ padding: '40px 40px 40px 320px', minHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ marginBottom: '30px' }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          Visão Geral da Obra
-        </span>
-        <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px' }}>Dashboard</h1>
+      <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <span style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            Visão Geral da Obra
+          </span>
+          <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px' }}>Dashboard</h1>
+        </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting || loading}
+          className="btn btn-accent"
+          style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', opacity: (exporting || loading) ? 0.7 : 1 }}
+          title="Exportar relatório completo em Excel (.xlsx)"
+        >
+          <Download size={18} />
+          {exporting ? 'Gerando Excel...' : 'Exportar Relatório Excel'}
+        </button>
       </div>
 
       {/* Metrics Row */}

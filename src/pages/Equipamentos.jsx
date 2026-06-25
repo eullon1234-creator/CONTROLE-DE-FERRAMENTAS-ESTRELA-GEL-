@@ -7,6 +7,7 @@ import {
   updateDoc, 
   deleteDoc,
   doc, 
+  setDoc,
   Timestamp 
 } from 'firebase/firestore';
 import { Plus, Search, Edit3, Trash2, X, ShieldAlert, Cpu } from 'lucide-react';
@@ -122,12 +123,12 @@ const Equipamentos = () => {
       } else {
         // Add (using the TAG itself as document ID to enforce uniqueness)
         const docRef = doc(db, COLLECTIONS.EQUIPAMENTOS, formData.tag.trim());
-        await updateDoc(docRef, {
+        await setDoc(docRef, {
           ...formData,
           grupo: classifyGroup(formData.descricao),
           criadoEm: Timestamp.now(),
           atualizadoEm: Timestamp.now()
-        });
+        }, { merge: true });
       }
       setIsModalOpen(false);
     } catch (err) {

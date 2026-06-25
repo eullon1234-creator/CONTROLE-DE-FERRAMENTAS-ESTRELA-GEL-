@@ -287,12 +287,12 @@ const Consertos = () => {
     if (!matchesSearch) return false;
 
     // Apply header/button bar tab filters
-    const statusLower = os.status.toLowerCase();
+    const statusNorm = (os.status || '').toLowerCase().trim();
     if (filterStatusTab === 'EM_CONSERTO') {
-      if (statusLower !== 'enviado' && statusLower !== 'em conserto') return false;
+      if (statusNorm !== 'enviado' && statusNorm !== 'em conserto') return false;
     }
-    if (filterStatusTab === 'RETORNADO' && statusLower !== 'retornado') return false;
-    if (filterStatusTab === 'CANCELADO' && statusLower !== 'cancelado') return false;
+    if (filterStatusTab === 'RETORNADO' && statusNorm !== 'retornado') return false;
+    if (filterStatusTab === 'CANCELADO' && statusNorm !== 'cancelado') return false;
 
     // Apply Excel Column Filters
     const evaluate = (itemVal, filterObj) => {
@@ -590,8 +590,10 @@ const Consertos = () => {
                 <tbody>
                   {sortedOsList.map((os) => {
                     const days = getDaysInRepair(os);
-                    const isPending = os.status.toLowerCase() === 'enviado' || os.status.toLowerCase() === 'em conserto';
-                    const isReturned = os.status.toLowerCase() === 'retornado';
+                    const statusNorm = (os.status || '').toLowerCase().trim();
+                    const isPending = statusNorm === 'enviado' || statusNorm === 'em conserto';
+                    const isReturned = statusNorm === 'retornado';
+                    const isCancelled = statusNorm === 'cancelado';
                     
                     return (
                       <tr key={os.id}>
@@ -605,14 +607,31 @@ const Consertos = () => {
                           {os.observacao && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Obs: {os.observacao}</div>}
                         </td>
                         <td>
-                          <span className={`badge ${
-                            isReturned ? 'badge-returned' : 
-                            os.status.toLowerCase() === 'cancelado' ? 'badge-repair' : 
-                            'badge-active'
-                          }`} style={{
-                            backgroundColor: isPending ? 'rgba(245, 158, 11, 0.1)' : undefined,
-                            color: isPending ? 'var(--color-warning)' : undefined
-                          }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '4px 10px',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              backgroundColor: isPending
+                                ? 'rgba(245, 158, 11, 0.15)'
+                                : isReturned
+                                ? 'rgba(71, 85, 105, 0.15)'
+                                : isCancelled
+                                ? 'rgba(239, 68, 68, 0.15)'
+                                : 'rgba(16, 185, 129, 0.15)',
+                              color: isPending
+                                ? 'var(--color-warning)'
+                                : isReturned
+                                ? 'var(--text-secondary)'
+                                : isCancelled
+                                ? 'var(--color-danger)'
+                                : 'var(--color-success)',
+                            }}
+                          >
                             {os.status}
                           </span>
                         </td>
