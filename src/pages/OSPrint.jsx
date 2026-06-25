@@ -190,15 +190,11 @@ const OSPrint = ({ os, onBack }) => {
       <table style={{ width: "100%", borderCollapse: "collapse", borderBottom: "1px solid #ddd" }}>
         <tbody>
           <tr>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33.33%" }}>
-              <span style={lbl}>Data da OS</span>
-              <span style={val}>{dateOS}</span>
-            </td>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33.33%" }}>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "50%" }}>
               <span style={lbl}>Data de Envio ao Conserto</span>
               <span style={val}>{dateEnvio}</span>
             </td>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", borderRight: "none", width: "33.33%" }}>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", borderRight: "none", width: "50%" }}>
               <span style={lbl}>Data de Retorno</span>
               <span style={val}>{dateRetorno}</span>
             </td>
