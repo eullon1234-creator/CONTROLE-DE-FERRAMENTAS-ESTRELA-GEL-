@@ -339,29 +339,29 @@ const Termos = ({ onPrintTerm }) => {
       const termRef = doc(db, COLLECTIONS.TERMOS, term.id);
       const collabRef = doc(db, COLLECTIONS.COLABORADORES, term.colaboradorId);
 
-      let nextOSNumber = 'OS-001';
+      let nextOSNumber = 'E01';
       if (newStatus === 'EM CONCERTO') {
         try {
           const osCol = collection(db, COLLECTIONS.OS_CONSERTO);
-          const q = query(osCol, orderBy('nOS', 'desc'), limit(1));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            const latestOS = snap.docs[0].data().nOS;
-            if (latestOS.startsWith('OS-')) {
-              const num = parseInt(latestOS.replace('OS-', ''), 10);
-              if (!isNaN(num)) {
-                nextOSNumber = `OS-${String(num + 1).padStart(3, '0')}`;
-              }
-            } else if (latestOS.startsWith('E')) {
-              const num = parseInt(latestOS.substring(1), 10);
-              if (!isNaN(num)) {
-                nextOSNumber = `OS-${String(num + 1).padStart(3, '0')}`;
-              }
+          const snap = await getDocs(osCol);
+          let maxNum = 0;
+          snap.forEach(docSnap => {
+            const nOS = docSnap.data().nOS || '';
+            let num = NaN;
+            if (nOS.startsWith('E')) {
+              num = parseInt(nOS.substring(1), 10);
+            } else if (nOS.startsWith('OS-')) {
+              num = parseInt(nOS.replace('OS-', ''), 10);
             }
-          }
+            if (!isNaN(num) && num > maxNum) {
+              maxNum = num;
+            }
+          });
+          const nextNum = maxNum + 1;
+          nextOSNumber = `E${String(nextNum).padStart(2, '0')}`;
         } catch (err) {
           console.error("Erro ao gerar número de OS, usando fallback:", err);
-          nextOSNumber = `OS-${Date.now().toString().slice(-6)}`;
+          nextOSNumber = `E${Date.now().toString().slice(-6)}`;
         }
       }
 
