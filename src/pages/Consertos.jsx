@@ -25,8 +25,9 @@ import {
   XCircle
 } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
+import { Printer } from 'lucide-react';
 
-const Consertos = () => {
+const Consertos = ({ onPrintOS }) => {
   const [osList, setOsList] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -643,6 +644,15 @@ const Consertos = () => {
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            {/* Print OS button (always visible) */}
+                            <button
+                              onClick={() => onPrintOS && onPrintOS(os)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px', color: 'var(--color-primary-light)', borderColor: 'rgba(59, 130, 246, 0.2)' }}
+                              title="Imprimir Ordem de Serviço"
+                            >
+                              <Printer size={14} />
+                            </button>
                             {isPending && (
                               <button
                                 onClick={() => {

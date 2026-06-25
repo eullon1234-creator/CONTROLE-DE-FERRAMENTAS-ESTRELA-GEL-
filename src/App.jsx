@@ -13,6 +13,7 @@ import Importador from './pages/Importador';
 import Consertos from './pages/Consertos';
 import TermoPrint from './pages/TermoPrint';
 import TermoConsolidatedPrint from './pages/TermoConsolidatedPrint';
+import OSPrint from './pages/OSPrint';
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -23,6 +24,7 @@ const App = () => {
   // Printing state variables
   const [printTerm, setPrintTerm] = useState(null);
   const [printConsolidated, setPrintConsolidated] = useState(null); // { collaborator, items }
+  const [printOS, setPrintOS] = useState(null); // OS to print
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -59,6 +61,11 @@ const App = () => {
   const handlePrintConsolidated = (collaborator, items) => {
     setPrintConsolidated({ collaborator, items });
     setCurrentPage('print_consolidado');
+  };
+
+  const handlePrintOS = (os) => {
+    setPrintOS(os);
+    setCurrentPage('print_os');
   };
 
   if (loading) {
@@ -111,6 +118,19 @@ const App = () => {
     );
   }
 
+  // 4. Render Printable OS View directly without Sidebar/Layout
+  if (currentPage === 'print_os' && printOS) {
+    return (
+      <OSPrint
+        os={printOS}
+        onBack={() => {
+          setPrintOS(null);
+          setCurrentPage('consertos');
+        }}
+      />
+    );
+  }
+
   // 4. Main authenticated dashboard layout
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -131,7 +151,7 @@ const App = () => {
         {currentPage === 'termos' && <Termos onPrintTerm={handlePrintTerm} />}
         {currentPage === 'equipamentos' && <Equipamentos />}
         {currentPage === 'colaboradores' && <Colaboradores onPrintConsolidated={handlePrintConsolidated} />}
-        {currentPage === 'consertos' && <Consertos />}
+        {currentPage === 'consertos' && <Consertos onPrintOS={handlePrintOS} />}
         {currentPage === 'importador' && <Importador />}
       </main>
 
