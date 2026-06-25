@@ -34,31 +34,31 @@ const OSPrint = ({ os, onBack }) => {
   const sh = {
     backgroundColor: "#1e3a5f",
     color: "#ffffff",
-    padding: "4px 10px",
-    fontSize: "7.5pt",
+    padding: "3px 8px",
+    fontSize: "7pt",
     fontWeight: "bold",
     textTransform: "uppercase",
     letterSpacing: "0.8px",
   };
 
   const lbl = {
-    fontSize: "6.5pt",
+    fontSize: "6pt",
     color: "#666",
     textTransform: "uppercase",
     letterSpacing: "0.5px",
     display: "block",
-    marginBottom: "2px",
+    marginBottom: "1px",
   };
 
-  const val = { fontWeight: "bold", fontSize: "10pt", color: "#000" };
+  const val = { fontWeight: "bold", fontSize: "9pt", color: "#000" };
 
-  const cell = { border: "1px solid #ccc", padding: "6px 8px", verticalAlign: "top" };
+  const cell = { border: "1px solid #ccc", padding: "4px 6px", verticalAlign: "top" };
 
   const dash = {
     display: "block",
     borderBottom: "1px dashed #aaa",
-    height: "18px",
-    marginBottom: "5px",
+    height: "14px",
+    marginBottom: "3px",
   };
 
   const OSForm = ({ copy }) => (
@@ -79,8 +79,8 @@ const OSPrint = ({ os, onBack }) => {
           <tr>
             <td
               style={{
-                width: "90px",
-                padding: "8px 10px",
+                width: "80px",
+                padding: "4px 6px",
                 borderRight: "1.5px solid #1e3a5f",
                 textAlign: "center",
                 verticalAlign: "middle",
@@ -90,7 +90,7 @@ const OSPrint = ({ os, onBack }) => {
               <div
                 style={{
                   fontWeight: 900,
-                  fontSize: "20pt",
+                  fontSize: "16pt",
                   fontFamily: "Arial Black, Arial, sans-serif",
                   color: "#1e3a5f",
                   lineHeight: 1,
@@ -100,9 +100,9 @@ const OSPrint = ({ os, onBack }) => {
               </div>
               <div
                 style={{
-                  fontSize: "5.5pt",
+                  fontSize: "5pt",
                   textTransform: "uppercase",
-                  letterSpacing: "2.5px",
+                  letterSpacing: "2px",
                   color: "#1e3a5f",
                   marginTop: "1px",
                 }}
@@ -111,11 +111,11 @@ const OSPrint = ({ os, onBack }) => {
               </div>
             </td>
 
-            <td style={{ padding: "6px 12px", textAlign: "center", verticalAlign: "middle" }}>
+            <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle" }}>
               <div
                 style={{
                   fontWeight: "bold",
-                  fontSize: "11pt",
+                  fontSize: "9.5pt",
                   textTransform: "uppercase",
                   color: "#1e3a5f",
                   letterSpacing: "0.3px",
@@ -123,21 +123,21 @@ const OSPrint = ({ os, onBack }) => {
               >
                 Ordem de Servico - Conserto de Ferramenta
               </div>
-              <div style={{ fontSize: "7pt", color: "#555", marginTop: "3px" }}>
+              <div style={{ fontSize: "6.5pt", color: "#555", marginTop: "2px" }}>
                 GEL Engenharia | Almoxarifado Estrela | Obra: UHE / Estrela | C.C.: 60218
               </div>
               {copy && (
                 <div
                   style={{
                     display: "inline-block",
-                    marginTop: "4px",
-                    padding: "1px 8px",
+                    marginTop: "2px",
+                    padding: "1px 6px",
                     backgroundColor: copy === "ALMOXARIFADO" ? "#1e3a5f" : "#4a7c59",
                     color: "#fff",
-                    fontSize: "6pt",
+                    fontSize: "5.5pt",
                     fontWeight: "bold",
                     borderRadius: "2px",
-                    letterSpacing: "1px",
+                    letterSpacing: "0.8px",
                   }}
                 >
                   VIA: {copy}
@@ -147,8 +147,8 @@ const OSPrint = ({ os, onBack }) => {
 
             <td
               style={{
-                width: "120px",
-                padding: "6px 10px",
+                width: "110px",
+                padding: "4px 6px",
                 borderLeft: "1.5px solid #1e3a5f",
                 textAlign: "center",
                 verticalAlign: "middle",
@@ -157,18 +157,18 @@ const OSPrint = ({ os, onBack }) => {
             >
               <div
                 style={{
-                  fontSize: "6pt",
+                  fontSize: "5.5pt",
                   fontWeight: "bold",
                   textTransform: "uppercase",
                   color: "#666",
-                  marginBottom: "2px",
+                  marginBottom: "1px",
                 }}
               >
                 N da OS
               </div>
               <div
                 style={{
-                  fontSize: "22pt",
+                  fontSize: "18pt",
                   fontWeight: "900",
                   fontFamily: "Courier New, monospace",
                   color: "#1e3a5f",
@@ -178,7 +178,7 @@ const OSPrint = ({ os, onBack }) => {
               >
                 {os.nOS}
               </div>
-              <div style={{ fontSize: "6pt", color: "#888", marginTop: "3px" }}>
+              <div style={{ fontSize: "5.5pt", color: "#888", marginTop: "2px" }}>
                 Emissao: {dateOS}
               </div>
             </td>
@@ -241,10 +241,10 @@ const OSPrint = ({ os, onBack }) => {
       <div style={sh}>Defeito Relatado / Motivo do Envio</div>
       <div
         style={{
-          padding: "8px 10px",
-          minHeight: "44px",
+          padding: "4px 8px",
+          minHeight: "30px",
           borderBottom: "1px solid #ddd",
-          fontSize: "9pt",
+          fontSize: "8.5pt",
           fontStyle: os.observacao ? "normal" : "italic",
           color: os.observacao ? "#000" : "#888",
         }}
@@ -260,7 +260,7 @@ const OSPrint = ({ os, onBack }) => {
 
       {/* SERVICO EXECUTADO */}
       <div style={sh}>Servico Executado / Pecas Substituidas (Preencher na Oficina)</div>
-      <div style={{ padding: "8px 10px", minHeight: "52px", borderBottom: "1px solid #ddd" }}>
+      <div style={{ padding: "4px 8px", minHeight: "36px", borderBottom: "1px solid #ddd" }}>
         <span style={dash}></span>
         <span style={dash}></span>
         <span style={{ ...dash, marginBottom: 0 }}></span>
@@ -291,20 +291,20 @@ const OSPrint = ({ os, onBack }) => {
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           <tr>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33%", textAlign: "center", paddingBottom: "22px" }}>
-              <div style={{ height: "36px", borderBottom: "1px solid #000", marginBottom: "5px" }}></div>
-              <div style={{ fontSize: "7.5pt", fontWeight: "bold", textTransform: "uppercase" }}>Enviado por</div>
-              <div style={{ fontSize: "6.5pt", color: "#666" }}>Almoxarifado Estrela / GEL</div>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33%", textAlign: "center", paddingBottom: "10px" }}>
+              <div style={{ height: "20px", borderBottom: "1px solid #000", marginBottom: "4px" }}></div>
+              <div style={{ fontSize: "7pt", fontWeight: "bold", textTransform: "uppercase" }}>Enviado por</div>
+              <div style={{ fontSize: "6pt", color: "#666" }}>Almoxarifado Estrela / GEL</div>
             </td>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33%", textAlign: "center", paddingBottom: "22px" }}>
-              <div style={{ height: "36px", borderBottom: "1px solid #000", marginBottom: "5px" }}></div>
-              <div style={{ fontSize: "7.5pt", fontWeight: "bold", textTransform: "uppercase" }}>Recebido pela Oficina</div>
-              <div style={{ fontSize: "6.5pt", color: "#666" }}>Responsavel pelo Conserto</div>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33%", textAlign: "center", paddingBottom: "10px" }}>
+              <div style={{ height: "20px", borderBottom: "1px solid #000", marginBottom: "4px" }}></div>
+              <div style={{ fontSize: "7pt", fontWeight: "bold", textTransform: "uppercase" }}>Recebido pela Oficina</div>
+              <div style={{ fontSize: "6pt", color: "#666" }}>Responsavel pelo Conserto</div>
             </td>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", borderRight: "none", width: "33%", textAlign: "center", paddingBottom: "22px" }}>
-              <div style={{ height: "36px", borderBottom: "1px solid #000", marginBottom: "5px" }}></div>
-              <div style={{ fontSize: "7.5pt", fontWeight: "bold", textTransform: "uppercase" }}>Conferencia de Retorno</div>
-              <div style={{ fontSize: "6.5pt", color: "#666" }}>Almoxarifado Estrela / GEL</div>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", borderRight: "none", width: "33%", textAlign: "center", paddingBottom: "10px" }}>
+              <div style={{ height: "20px", borderBottom: "1px solid #000", marginBottom: "4px" }}></div>
+              <div style={{ fontSize: "7pt", fontWeight: "bold", textTransform: "uppercase" }}>Conferencia de Retorno</div>
+              <div style={{ fontSize: "6pt", color: "#666" }}>Almoxarifado Estrela / GEL</div>
             </td>
           </tr>
         </tbody>
@@ -447,7 +447,7 @@ const OSPrint = ({ os, onBack }) => {
             backgroundColor: "#ffffff",
             boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
             borderRadius: "4px",
-            padding: "28px 32px",
+            padding: "12px 18px",
           }}
         >
           {/* VIA 1 */}
@@ -457,12 +457,12 @@ const OSPrint = ({ os, onBack }) => {
           <div
             className="cut-line"
             style={{
-              margin: "18px 0",
+              margin: "10px 0",
               display: "flex",
               alignItems: "center",
               gap: "10px",
               color: "#94a3b8",
-              fontSize: "7.5pt",
+              fontSize: "7pt",
             }}
           >
             <div style={{ flex: 1, borderTop: "1.5px dashed #94a3b8" }}></div>
@@ -478,9 +478,9 @@ const OSPrint = ({ os, onBack }) => {
           {/* RODAPE */}
           <div
             style={{
-              marginTop: "14px",
+              marginTop: "8px",
               textAlign: "center",
-              fontSize: "6.5pt",
+              fontSize: "6pt",
               color: "#94a3b8",
               letterSpacing: "0.3px",
             }}
@@ -510,7 +510,7 @@ const OSPrint = ({ os, onBack }) => {
           }
           @page {
             size: A4 portrait;
-            margin: 8mm 12mm;
+            margin: 5mm 8mm;
           }
         }
       `}</style>
