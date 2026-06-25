@@ -10,7 +10,8 @@ import {
   Timestamp,
   getDocs,
   query,
-  where
+  where,
+  getDoc
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -274,14 +275,32 @@ const Consertos = ({ onPrintOS }) => {
             where('status', '==', 'EM CONCERTO')
           );
           const termosSnap = await getDocs(qTermos);
-          const updates = termosSnap.docs.map(termoDoc =>
-            updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+          for (const termoDoc of termosSnap.docs) {
+            const termData = termoDoc.data();
+            
+            // Reverte o status do Termo e limpa o vínculo da OS
+            await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
               status: 'ATIVO',
               dataDevolucao: null,
-              osVinculada: selectedOs.nOS
-            })
-          );
-          await Promise.all(updates);
+              osVinculada: null
+            });
+
+            // Atualiza contadores do Colaborador correspondente
+            if (termData.colaboradorId) {
+              const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
+              const collabSnap = await getDoc(collabRef);
+              if (collabSnap.exists()) {
+                const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+                const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+                const quantidade = termData.quantidade || 1;
+                await updateDoc(collabRef, {
+                  totalItensAtivos: currentAtivos + quantidade,
+                  totalItensDevolvidos: Math.max(0, currentDevolvidos - quantidade),
+                  atualizadoEm: Timestamp.now()
+                });
+              }
+            }
+          }
           if (termosSnap.size > 0) {
             showToast(`Retorno registrado! Termo de ${termosSnap.docs[0].data().colaboradorNome} reativado como "ATIVO"`);
           } else {
@@ -311,7 +330,59 @@ const Consertos = ({ onPrintOS }) => {
     if (!confirmDel) return;
 
     try {
+      // 1. Delete OS document
       await deleteDoc(doc(db, COLLECTIONS.OS_CONSERTO, osItem.id));
+
+      // 2. Marca equipamento como "Disponível" se estiver em manutenção
+      if (osItem.tag) {
+        const matchedEq = equipamentos.find(eq => eq.tag?.toUpperCase() === osItem.tag.toUpperCase() || eq.id?.toUpperCase() === osItem.tag.toUpperCase());
+        if (matchedEq) {
+          const eqRef = doc(db, COLLECTIONS.EQUIPAMENTOS, matchedEq.id);
+          await updateDoc(eqRef, {
+            status: 'Disponível',
+            atualizadoEm: Timestamp.now()
+          });
+        }
+      }
+
+      // 3. Busca Termos vinculados a esta OS (osVinculada === osItem.nOS) e reverte para "ATIVO"
+      try {
+        const termosRef = collection(db, COLLECTIONS.TERMOS);
+        const qTermos = query(
+          termosRef,
+          where('osVinculada', '==', osItem.nOS)
+        );
+        const termosSnap = await getDocs(qTermos);
+        for (const termoDoc of termosSnap.docs) {
+          const termData = termoDoc.data();
+          
+          // Reverte o status do Termo e limpa o vínculo
+          await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+            status: 'ATIVO',
+            dataDevolucao: null,
+            osVinculada: null
+          });
+
+          // Atualiza contadores do Colaborador se o termo estava em conserto
+          if (termData.status === 'EM CONCERTO' && termData.colaboradorId) {
+            const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
+            const collabSnap = await getDoc(collabRef);
+            if (collabSnap.exists()) {
+              const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+              const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+              const quantidade = termData.quantidade || 1;
+              await updateDoc(collabRef, {
+                totalItensAtivos: currentAtivos + quantidade,
+                totalItensDevolvidos: Math.max(0, currentDevolvidos - quantidade),
+                atualizadoEm: Timestamp.now()
+              });
+            }
+          }
+        }
+      } catch (termErr) {
+        console.warn('Erro ao atualizar Termos/Colaboradores na exclusão da OS:', termErr);
+      }
+
       showToast('Ordem de Serviço excluída com sucesso!');
     } catch (err) {
       console.error(err);
