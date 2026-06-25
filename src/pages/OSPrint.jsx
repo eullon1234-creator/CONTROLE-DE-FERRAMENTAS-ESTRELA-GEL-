@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from "react";
+import React, { useEffect } from "react";
 import { ArrowLeft, Printer, FileText, Clock, Wrench, CheckCircle } from "lucide-react";
 
 const OSPrint = ({ os, onBack }) => {
@@ -190,33 +190,17 @@ const OSPrint = ({ os, onBack }) => {
       <table style={{ width: "100%", borderCollapse: "collapse", borderBottom: "1px solid #ddd" }}>
         <tbody>
           <tr>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "25%" }}>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33.33%" }}>
               <span style={lbl}>Data da OS</span>
               <span style={val}>{dateOS}</span>
             </td>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "25%" }}>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "33.33%" }}>
               <span style={lbl}>Data de Envio ao Conserto</span>
               <span style={val}>{dateEnvio}</span>
             </td>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", width: "25%" }}>
+            <td style={{ ...cell, borderTop: "none", borderLeft: "none", borderRight: "none", width: "33.33%" }}>
               <span style={lbl}>Data de Retorno</span>
               <span style={val}>{dateRetorno}</span>
-            </td>
-            <td style={{ ...cell, borderTop: "none", borderLeft: "none", borderRight: "none", width: "25%" }}>
-              <span style={lbl}>Status</span>
-              <span
-                style={{
-                  ...val,
-                  color:
-                    os.status === "Retornado"
-                      ? "#166534"
-                      : os.status === "Cancelado"
-                      ? "#991b1b"
-                      : "#92400e",
-                }}
-              >
-                {(os.status || "Enviado").toUpperCase()}
-              </span>
             </td>
           </tr>
         </tbody>
