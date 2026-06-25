@@ -2,16 +2,31 @@ import * as XLSX from 'xlsx';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const fmtDate = (val) => {
-  if (!val) return '-';
-  if (val instanceof Date) return val.toLocaleDateString('pt-BR');
-  if (val?.toDate) return val.toDate().toLocaleDateString('pt-BR');
-  return String(val);
+const makeDateCell = (date) => {
+  if (!date) return { v: '-', t: 's' };
+  let dateObj = date;
+  if (date?.toDate) dateObj = date.toDate();
+  if (!(dateObj instanceof Date)) {
+    const parsed = Date.parse(dateObj);
+    if (!isNaN(parsed)) dateObj = new Date(parsed);
+    else return { v: String(dateObj), t: 's' };
+  }
+  // Remove time component to keep it clean as date
+  const cleanDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  return { v: cleanDate, t: 'd', z: 'dd/mm/yyyy' };
 };
 
-const fmtBool = (val) => (val ? '✅ Sim' : '❌ Não');
+const makeNumberCell = (val) => {
+  const num = Number(val);
+  if (isNaN(num)) return { v: val || 0, t: 'n', z: '#,##0' };
+  return { v: num, t: 'n', z: '#,##0' };
+};
 
-const fmtStatus = (status) => {
+const makeBoolCell = (val) => {
+  return { v: val ? '✅ Sim' : '❌ Não', t: 's' };
+};
+
+const makeStatusCell = (status) => {
   const map = {
     ATIVO: '🟢 ATIVO',
     DEVOLVIDO: '⚫ DEVOLVIDO',
@@ -24,15 +39,40 @@ const fmtStatus = (status) => {
     'Em Manutenção': '🟡 Em Manutenção',
     Inativo: '⚫ Inativo',
   };
-  return map[status] || status || '-';
+  return { v: map[status] || status || '-', t: 's' };
 };
+
+/** Convert column index to Excel column letter (e.g. 0 -> A, 1 -> B, 26 -> AA) */
+function getColLetter(colIndex) {
+  let temp = colIndex;
+  let letter = '';
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return letter;
+}
 
 /** Adjust column widths based on data content */
 const autoWidth = (ws, data, headers) => {
   const colWidths = headers.map((h) => Math.max(h.length, 10));
   data.forEach((row) => {
     Object.values(row).forEach((val, i) => {
-      const len = String(val ?? '').length;
+      let displayVal = val;
+      if (val && typeof val === 'object' && 'v' in val) {
+        displayVal = val.v;
+      } else if (val && typeof val === 'object' && 'f' in val) {
+        displayVal = val.f;
+      }
+      
+      let strVal = '';
+      if (displayVal instanceof Date) {
+        strVal = displayVal.toLocaleDateString('pt-BR');
+      } else {
+        strVal = String(displayVal ?? '');
+      }
+
+      const len = strVal.length;
       if (len > colWidths[i]) colWidths[i] = len;
     });
   });
@@ -43,24 +83,6 @@ const autoWidth = (ws, data, headers) => {
 
 function buildResumoSheet(termos, equipamentos, colaboradores, osList) {
   const now = new Date();
-  const totalTermos = termos.length;
-  const ativos = termos.filter((t) => t.status === 'ATIVO').length;
-  const devolvidos = termos.filter((t) => t.status === 'DEVOLVIDO').length;
-  const emConserto = termos.filter((t) => t.status === 'EM CONCERTO').length;
-  const totalQtdAtiva = termos
-    .filter((t) => t.status === 'ATIVO')
-    .reduce((a, t) => a + (Number(t.quantidade) || 1), 0);
-  const totalEquipamentos = equipamentos.length;
-  const eqDisp = equipamentos.filter((e) => e.status === 'Disponível').length;
-  const eqManut = equipamentos.filter((e) => e.status === 'Em Manutenção').length;
-  const totalColaboradores = colaboradores.length;
-  const collabComAtivos = colaboradores.filter((c) => (c.totalItensAtivos || 0) > 0).length;
-  const totalOS = osList.length;
-  const osPendente = osList.filter((o) => {
-    const s = (o.status || '').toLowerCase();
-    return s === 'enviado' || s === 'em conserto';
-  }).length;
-  const osRetornado = osList.filter((o) => o.status?.toLowerCase() === 'retornado').length;
 
   const rows = [
     ['RELATÓRIO COMPLETO — CONTROLE DE FERRAMENTARIA'],
@@ -68,29 +90,33 @@ function buildResumoSheet(termos, equipamentos, colaboradores, osList) {
     [`Data de Geração: ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR')}`],
     [],
     ['━━━ TERMOS DE RESPONSABILIDADE ━━━'],
-    ['Total de Termos Cadastrados', totalTermos],
-    ['Termos ATIVOS', ativos],
-    ['Termos DEVOLVIDOS', devolvidos],
-    ['Termos EM CONSERTO', emConserto],
-    ['Total de Unidades Ativas (Qtd)', totalQtdAtiva],
+    ['Total de Termos Cadastrados', { f: "COUNTA('📋 Termos de Resp.'!B:B)-1", t: 'n', z: '#,##0' }],
+    ['Termos ATIVOS', { f: "COUNTIF('📋 Termos de Resp.'!J:J, \"*ATIVO\")", t: 'n', z: '#,##0' }],
+    ['Termos DEVOLVIDOS', { f: "COUNTIF('📋 Termos de Resp.'!J:J, \"*DEVOLVIDO\")", t: 'n', z: '#,##0' }],
+    ['Termos EM CONSERTO', { f: "COUNTIF('📋 Termos de Resp.'!J:J, \"*CONSERTO\")", t: 'n', z: '#,##0' }],
+    ['Total de Unidades Ativas (Qtd)', { f: "SUMIF('📋 Termos de Resp.'!J:J, \"*ATIVO\", '📋 Termos de Resp.'!I:I)", t: 'n', z: '#,##0' }],
     [],
     ['━━━ CATÁLOGO DE EQUIPAMENTOS ━━━'],
-    ['Total de Equipamentos no Catálogo', totalEquipamentos],
-    ['Equipamentos Disponíveis', eqDisp],
-    ['Equipamentos em Manutenção', eqManut],
+    ['Total de Equipamentos no Catálogo', { f: "COUNTA('🔧 Equipamentos'!B:B)-1", t: 'n', z: '#,##0' }],
+    ['Equipamentos Disponíveis', { f: "COUNTIF('🔧 Equipamentos'!G:G, \"*Disponível\")", t: 'n', z: '#,##0' }],
+    ['Equipamentos em Manutenção', { f: "COUNTIF('🔧 Equipamentos'!G:G, \"*Manutenção\")", t: 'n', z: '#,##0' }],
     [],
     ['━━━ COLABORADORES ━━━'],
-    ['Total de Colaboradores', totalColaboradores],
-    ['Colaboradores com Itens Ativos', collabComAtivos],
+    ['Total de Colaboradores', { f: "COUNTA('👷 Colaboradores'!A:A)-1", t: 'n', z: '#,##0' }],
+    ['Colaboradores com Itens Ativos', { f: "COUNTIF('👷 Colaboradores'!C:C, \">0\")", t: 'n', z: '#,##0' }],
     [],
     ['━━━ ORDENS DE SERVIÇO (CONSERTOS) ━━━'],
-    ['Total de OS Registradas', totalOS],
-    ['OS Pendentes (Enviado / Em Conserto)', osPendente],
-    ['OS Retornadas', osRetornado],
+    ['Total de OS Registradas', { f: "COUNTA('🔨 Ordens de Serviço'!A:A)-1", t: 'n', z: '#,##0' }],
+    ['OS Pendentes (Enviado / Em Conserto)', { f: "COUNTIF('🔨 Ordens de Serviço'!F:F, \"*ENVIADO\") + COUNTIF('🔨 Ordens de Serviço'!F:F, \"*CONSERTO\")", t: 'n', z: '#,##0' }],
+    ['OS Retornadas', { f: "COUNTIF('🔨 Ordens de Serviço'!F:F, \"*RETORNADO\")", t: 'n', z: '#,##0' }],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [{ wch: 45 }, { wch: 20 }];
+  
+  // Exibir linhas de grade
+  ws['!views'] = [{ showGridLines: true }];
+  
   return ws;
 }
 
@@ -112,7 +138,7 @@ function buildTermosSheet(termos) {
   ];
 
   const rows = termos.map((t) => ({
-    'Data Empréstimo': fmtDate(t.dateObj || t.dataEntrada),
+    'Data Empréstimo': makeDateCell(t.dateObj || t.dataEntrada),
     Colaborador: t.colaboradorNome || '-',
     'Função / Cargo': t.colaboradorFuncao || '-',
     'Equipamento / Material': t.descricaoMaterial || '-',
@@ -120,14 +146,21 @@ function buildTermosSheet(termos) {
     Modelo: t.modelo || '-',
     'Código / TAG': t.tag || t.codEquipamento || '-',
     Categoria: t.grupo || '-',
-    Quantidade: Number(t.quantidade) || 1,
-    Status: fmtStatus(t.status),
-    'Assinado Digitalmente': fmtBool(!!t.assinaturaBase64),
-    'Data Devolução / OS': fmtDate(t.retDateObj || t.dataDevolucao),
+    Quantidade: makeNumberCell(t.quantidade || 1),
+    Status: makeStatusCell(t.status),
+    'Assinado Digitalmente': makeBoolCell(!!t.assinaturaBase64),
+    'Data Devolução / OS': makeDateCell(t.retDateObj || t.dataDevolucao),
     Observação: t.observacao || '-',
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+  
+  // Configurar autofiltro e congelar cabeçalho
+  const lastColChar = getColLetter(headers.length - 1);
+  const totalRows = rows.length + 1;
+  ws['!autofilter'] = { ref: `A1:${lastColChar}${totalRows}` };
+  ws['!views'] = [{ state: 'frozen', ySplit: 1, showGridLines: true }];
+
   autoWidth(ws, rows, headers);
   return ws;
 }
@@ -151,13 +184,20 @@ function buildEquipamentosSheet(equipamentos) {
     'Marca / Modelo': e.marcaModelo || '-',
     Categoria: e.grupo || '-',
     Unidade: e.und || 'Unidade',
-    'Qtd Total': Number(e.quantidadeTotal) || 0,
-    Status: fmtStatus(e.status),
+    'Qtd Total': makeNumberCell(e.quantidadeTotal || 0),
+    Status: makeStatusCell(e.status),
     Setor: e.setor || 'Almoxarifado',
     Observação: e.observacao || '-',
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+  // Configurar autofiltro e congelar cabeçalho
+  const lastColChar = getColLetter(headers.length - 1);
+  const totalRows = rows.length + 1;
+  ws['!autofilter'] = { ref: `A1:${lastColChar}${totalRows}` };
+  ws['!views'] = [{ state: 'frozen', ySplit: 1, showGridLines: true }];
+
   autoWidth(ws, rows, headers);
   return ws;
 }
@@ -183,16 +223,21 @@ function buildColaboradoresSheet(colaboradores, termos) {
     return {
       Colaborador: c.nome || '-',
       'Função / Cargo': c.funcao || '-',
-      'Itens Ativos (Qtd)': Number(c.totalItensAtivos) || 0,
-      'Itens Devolvidos (Qtd)': Number(c.totalItensDevolvidos) || 0,
-      'Total de Registros': collabTermos.length,
-      'Último Empréstimo': lastTermo
-        ? fmtDate(lastTermo.dateObj instanceof Date ? lastTermo.dateObj : lastTermo.dataEntrada?.toDate?.())
-        : '-',
+      'Itens Ativos (Qtd)': makeNumberCell(c.totalItensAtivos || 0),
+      'Itens Devolvidos (Qtd)': makeNumberCell(c.totalItensDevolvidos || 0),
+      'Total de Registros': makeNumberCell(collabTermos.length),
+      'Último Empréstimo': makeDateCell(lastTermo ? (lastTermo.dateObj instanceof Date ? lastTermo.dateObj : lastTermo.dataEntrada?.toDate?.()) : null),
     };
   });
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+  // Configurar autofiltro e congelar cabeçalho
+  const lastColChar = getColLetter(headers.length - 1);
+  const totalRows = rows.length + 1;
+  ws['!autofilter'] = { ref: `A1:${lastColChar}${totalRows}` };
+  ws['!views'] = [{ state: 'frozen', ySplit: 1, showGridLines: true }];
+
   autoWidth(ws, rows, headers);
   return ws;
 }
@@ -210,29 +255,35 @@ function buildOSSheet(osList) {
     'Observação',
   ];
 
-  const getDays = (os) => {
-    const s = (os.status || '').toLowerCase();
-    if (s === 'retornado' || s === 'cancelado') return os.diasEmConserto || 0;
-    const envio = os.dateEnvioObj instanceof Date
-      ? os.dateEnvioObj
-      : (os.dataEnvio?.toDate?.() || null);
-    if (!envio) return 0;
-    return Math.floor((new Date() - envio) / (1000 * 60 * 60 * 24));
-  };
+  const rows = osList.map((os, idx) => {
+    const rowNum = idx + 2; // Cabeçalho é linha 1, dados começam na 2
+    
+    // Fórmula para calcular dias de conserto dinamicamente no Excel:
+    // Se a coluna F (Status) for igual a "⚫ RETORNADO", calcula a diferença G (Retorno) - C (Envio).
+    // Caso contrário, calcula a diferença TODAY() - C (Envio)
+    const formula = `=IF(F${rowNum}="⚫ RETORNADO", G${rowNum}-C${rowNum}, TODAY()-C${rowNum})`;
 
-  const rows = osList.map((os) => ({
-    'Nº OS': os.nOS || '-',
-    'Data da OS': fmtDate(os.dateOSObj || os.dataOS),
-    'Data Envio': fmtDate(os.dateEnvioObj || os.dataEnvio),
-    TAG: os.tag || '-',
-    'Descrição do Material': os.descricao || '-',
-    Status: fmtStatus(os.status),
-    'Data Retorno': fmtDate(os.dateRetornoObj || os.dataRetorno),
-    'Dias em Conserto': getDays(os),
-    Observação: os.observacao || '-',
-  }));
+    return {
+      'Nº OS': os.nOS || '-',
+      'Data da OS': makeDateCell(os.dateOSObj || os.dataOS),
+      'Data Envio': makeDateCell(os.dateEnvioObj || os.dataEnvio),
+      TAG: os.tag || '-',
+      'Descrição do Material': os.descricao || '-',
+      Status: makeStatusCell(os.status),
+      'Data Retorno': makeDateCell(os.dateRetornoObj || os.dataRetorno),
+      'Dias em Conserto': { f: formula, t: 'n', z: '#,##0' },
+      Observação: os.observacao || '-',
+    };
+  });
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+  // Configurar autofiltro e congelar cabeçalho
+  const lastColChar = getColLetter(headers.length - 1);
+  const totalRows = rows.length + 1;
+  ws['!autofilter'] = { ref: `A1:${lastColChar}${totalRows}` };
+  ws['!views'] = [{ state: 'frozen', ySplit: 1, showGridLines: true }];
+
   autoWidth(ws, rows, headers);
   return ws;
 }
@@ -268,3 +319,4 @@ export function exportFullReport({ termos, equipamentos, colaboradores, osList }
 
   XLSX.writeFile(wb, filename);
 }
+
