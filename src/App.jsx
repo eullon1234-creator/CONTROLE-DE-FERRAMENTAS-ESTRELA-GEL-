@@ -26,12 +26,26 @@ const App = () => {
   const [printConsolidated, setPrintConsolidated] = useState(null); // { collaborator, items }
   const [printOS, setPrintOS] = useState(null); // OS to print
 
+  // PWA States
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [activeInstallTab, setActiveInstallTab] = useState('pc');
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   // Update theme attribute on root HTML element
@@ -143,6 +157,8 @@ const App = () => {
         toggleTheme={toggleTheme}
         user={user}
         handleLogout={handleLogout}
+        showInstallBtn={!window.matchMedia('(display-mode: standalone)').matches}
+        handleInstallApp={() => setIsInstallModalOpen(true)}
       />
 
       {/* Pages Container */}
@@ -154,6 +170,197 @@ const App = () => {
         {currentPage === 'consertos' && <Consertos onPrintOS={handlePrintOS} />}
         {currentPage === 'importador' && <Importador />}
       </main>
+
+      {/* PWA Installation Modal */}
+      {isInstallModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '20px',
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideUp {
+              from { transform: translateY(20px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}</style>
+          <div style={{
+            backgroundColor: 'var(--bg-app)',
+            border: '1px solid var(--border-card)',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '540px',
+            padding: '24px',
+            boxShadow: 'var(--shadow-glass)',
+            display: 'flex',
+            flexDirection: 'column',
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-body)',
+            animation: 'slideUp 0.3s ease'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                Instalar Aplicativo (PWA)
+              </h3>
+              <button 
+                onClick={() => setIsInstallModalOpen(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '1.4rem',
+                  lineHeight: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: 1.5 }}>
+              Você pode instalar este aplicativo no seu celular ou computador. Ele funcionará como um aplicativo nativo, consumindo menos internet e abrindo de forma independente.
+            </p>
+
+            {/* Direct Install Button if supported */}
+            {deferredPrompt && (
+              <div style={{ 
+                backgroundColor: 'rgba(59, 130, 246, 0.08)', 
+                border: '1px solid rgba(59, 130, 246, 0.2)', 
+                borderRadius: '8px', 
+                padding: '16px', 
+                marginBottom: '20px',
+                textAlign: 'center'
+              }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-primary-light)', marginBottom: '8px' }}>
+                  Seu dispositivo suporta instalação direta!
+                </h4>
+                <button
+                  onClick={async () => {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log('Installation prompt outcome:', outcome);
+                    setDeferredPrompt(null);
+                    setIsInstallModalOpen(false);
+                  }}
+                  style={{
+                    backgroundColor: '#3b82f6',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 20px',
+                    fontWeight: 600,
+                    fontSize: '0.88rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                    transition: 'background-color 0.2s'
+                  }}
+                >
+                  Instalar Agora no Dispositivo
+                </button>
+              </div>
+            )}
+
+            {/* Tabs header */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-card)', marginBottom: '16px', gap: '8px' }}>
+              {[
+                { id: 'pc', label: 'Computador (PC)' },
+                { id: 'android', label: 'Android' },
+                { id: 'ios', label: 'iPhone (iOS)' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveInstallTab(tab.id)}
+                  style={{
+                    padding: '10px 14px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: activeInstallTab === tab.id ? '2px solid var(--color-primary-light)' : '2px solid transparent',
+                    color: activeInstallTab === tab.id ? 'var(--color-primary-light)' : 'var(--text-muted)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div style={{ flexGrow: 1, minHeight: '140px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {activeInstallTab === 'pc' && (
+                <div>
+                  <ol style={{ paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <li>Abra o sistema usando o navegador <strong>Google Chrome</strong> ou <strong>Microsoft Edge</strong>.</li>
+                    <li>Olhe na barra de endereços (ao lado da barra de pesquisa) e clique no ícone de instalar 🖥️ (computador com uma seta para baixo) ou toque no menu e selecione <strong>"Instalar o app..."</strong>.</li>
+                    <li>Confirme a instalação e um atalho será criado na sua Área de Trabalho.</li>
+                  </ol>
+                </div>
+              )}
+              
+              {activeInstallTab === 'android' && (
+                <div>
+                  <ol style={{ paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <li>Abra o link do sistema no navegador <strong>Google Chrome</strong> do celular.</li>
+                    <li>Toque no botão de menu (três pontinhos no canto superior direito).</li>
+                    <li>Selecione a opção <strong>"Adicionar à tela inicial"</strong> ou <strong>"Instalar aplicativo"</strong>.</li>
+                    <li>Siga as instruções na tela para concluir.</li>
+                  </ol>
+                </div>
+              )}
+
+              {activeInstallTab === 'ios' && (
+                <div>
+                  <ol style={{ paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <li>Abra o link do sistema pelo navegador <strong>Safari</strong> do iPhone.</li>
+                    <li>Toque no ícone de <strong>Compartilhar</strong> (quadrado com uma seta apontando para cima na barra inferior).</li>
+                    <li>Role a lista de opções para baixo e toque em <strong>"Adicionar à Tela de Início"</strong>.</li>
+                    <li>Digite o nome do aplicativo e toque em <strong>"Adicionar"</strong> no canto superior direito.</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button
+                onClick={() => setIsInstallModalOpen(false)}
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-card)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
-const Sidebar = ({ currentPage, setCurrentPage, theme, toggleTheme, user, handleLogout }) => {
+const Sidebar = ({ currentPage, setCurrentPage, theme, toggleTheme, user, handleLogout, showInstallBtn, handleInstallApp }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'termos', label: 'Termos de Resp.', icon: FileText },
@@ -150,6 +150,41 @@ const Sidebar = ({ currentPage, setCurrentPage, theme, toggleTheme, user, handle
         flexDirection: 'column',
         gap: '16px'
       }}>
+        {/* PWA Install Button */}
+        {showInstallBtn && (
+          <button
+            onClick={handleInstallApp}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '10px',
+              borderRadius: '6px',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              backgroundColor: 'rgba(59, 130, 246, 0.08)',
+              color: '#93c5fd',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.18)';
+              e.currentTarget.style.color = '#3b82f6';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
+              e.currentTarget.style.color = '#93c5fd';
+            }}
+          >
+            <UploadCloud size={14} />
+            Instalar Aplicativo
+          </button>
+        )}
+
         {/* Theme and User Info */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
