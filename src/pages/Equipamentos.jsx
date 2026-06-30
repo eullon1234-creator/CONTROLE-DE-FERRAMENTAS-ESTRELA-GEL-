@@ -482,7 +482,11 @@ const Equipamentos = () => {
                       <span style={{ 
                         fontSize: '0.75rem', 
                         fontWeight: 700, 
-                        color: item.status === 'Disponível' ? 'var(--color-success)' : 'var(--color-warning)' 
+                        color: item.status === 'Disponível' 
+                          ? 'var(--color-success)' 
+                          : item.status === 'Descartado' 
+                          ? 'var(--color-danger)' 
+                          : 'var(--color-warning)' 
                       }}>
                         {item.status}
                       </span>
@@ -613,7 +617,7 @@ const Equipamentos = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Status Inicial</label>
+                  <label className="form-label">Status Inicial / Atual</label>
                   <select
                     className="form-input"
                     value={formData.status}
@@ -623,6 +627,7 @@ const Equipamentos = () => {
                     <option value="Disponível">Disponível</option>
                     <option value="Em Manutenção">Em Manutenção</option>
                     <option value="Inativo">Inativo</option>
+                    <option value="Descartado">Descartado</option>
                   </select>
                 </div>
               </div>

@@ -70,7 +70,8 @@ const Consertos = ({ onPrintOS }) => {
 
   const [returnFormData, setReturnFormData] = useState({
     dataRetorno: new Date().toISOString().substring(0, 10),
-    observacao: ''
+    observacao: '',
+    acaoRetorno: 'RETORNADO' // 'RETORNADO' or 'DESCARTADO'
   });
 
   const showToast = (message, type = 'success') => {
@@ -245,28 +246,31 @@ const Consertos = ({ onPrintOS }) => {
       const diffTime = Math.max(0, dateRetornoVal.getTime() - dateEnvioVal.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+      const isDiscarded = returnFormData.acaoRetorno === 'DESCARTADO';
       const osRef = doc(db, COLLECTIONS.OS_CONSERTO, selectedOs.id);
       
       // 1. Update OS document
       await updateDoc(osRef, {
-        status: 'Retornado',
+        status: isDiscarded ? 'Descartado' : 'Retornado',
         dataRetorno: Timestamp.fromDate(dateRetornoVal),
         diasEmConserto: diffDays,
-        observacao: returnFormData.observacao.trim() ? `${selectedOs.observacao ? selectedOs.observacao + ' | ' : ''}Retorno: ${returnFormData.observacao.trim()}` : (selectedOs.observacao || '')
+        observacao: returnFormData.observacao.trim() 
+          ? `${selectedOs.observacao ? selectedOs.observacao + ' | ' : ''}${isDiscarded ? 'Descarte: ' : 'Retorno: '}${returnFormData.observacao.trim()}` 
+          : (selectedOs.observacao || '')
       });
 
-      // 2. Marca equipamento como "Disponível" novamente
+      // 2. Marca equipamento
       if (selectedOs.tag) {
         const matchedEq = equipamentos.find(eq => eq.tag?.toUpperCase() === selectedOs.tag.toUpperCase() || eq.id?.toUpperCase() === selectedOs.tag.toUpperCase());
         if (matchedEq) {
           const eqRef = doc(db, COLLECTIONS.EQUIPAMENTOS, matchedEq.id);
           await updateDoc(eqRef, {
-            status: 'Disponível',
+            status: isDiscarded ? 'Descartado' : 'Disponível',
             atualizadoEm: Timestamp.now()
           });
         }
 
-        // 3. Busca Termos com status "EM CONCERTO" para esse TAG e reverte para "ATIVO"
+        // 3. Busca Termos com status "EM CONCERTO" para esse TAG
         try {
           const termosRef = collection(db, COLLECTIONS.TERMOS);
           const qTermos = query(
@@ -278,50 +282,66 @@ const Consertos = ({ onPrintOS }) => {
           for (const termoDoc of termosSnap.docs) {
             const termData = termoDoc.data();
             
-            // Reverte o status do Termo e limpa o vínculo da OS
-            await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
-              status: 'ATIVO',
-              dataDevolucao: null,
-              osVinculada: null
-            });
+            if (isDiscarded) {
+              // Se foi descartada, marcamos o termo como DEVOLVIDO (ou encerrado) e adicionamos na observação.
+              // Como já estava "EM CONCERTO", o totalItensAtivos do colaborador já havia sido reduzido,
+              // então não reativamos e nem mexemos nos contadores.
+              await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+                status: 'DEVOLVIDO',
+                dataDevolucao: Timestamp.fromDate(dateRetornoVal),
+                osVinculada: null,
+                observacao: `${termData.observacao ? termData.observacao + ' | ' : ''}Descartada sem conserto na OS ${selectedOs.nOS} em ${dateRetornoVal.toLocaleDateString('pt-BR')}${returnFormData.observacao.trim() ? ': ' + returnFormData.observacao.trim() : ''}`
+              });
+            } else {
+              // Reverte o status do Termo e limpa o vínculo da OS
+              await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+                status: 'ATIVO',
+                dataDevolucao: null,
+                osVinculada: null
+              });
 
-            // Atualiza contadores do Colaborador correspondente
-            if (termData.colaboradorId) {
-              const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
-              const collabSnap = await getDoc(collabRef);
-              if (collabSnap.exists()) {
-                const currentAtivos = collabSnap.data().totalItensAtivos || 0;
-                const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
-                const quantidade = termData.quantidade || 1;
-                await updateDoc(collabRef, {
-                  totalItensAtivos: currentAtivos + quantidade,
-                  totalItensDevolvidos: Math.max(0, currentDevolvidos - quantidade),
-                  atualizadoEm: Timestamp.now()
-                });
+              // Atualiza contadores do Colaborador correspondente
+              if (termData.colaboradorId) {
+                const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
+                const collabSnap = await getDoc(collabRef);
+                if (collabSnap.exists()) {
+                  const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+                  const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+                  const quantidade = termData.quantidade || 1;
+                  await updateDoc(collabRef, {
+                    totalItensAtivos: currentAtivos + quantidade,
+                    totalItensDevolvidos: Math.max(0, currentDevolvidos - quantidade),
+                    atualizadoEm: Timestamp.now()
+                  });
+                }
               }
             }
           }
           if (termosSnap.size > 0) {
-            showToast(`Retorno registrado! Termo de ${termosSnap.docs[0].data().colaboradorNome} reativado como "ATIVO"`);
+            showToast(isDiscarded 
+              ? `Descarte registrado! Termo de ${termosSnap.docs[0].data().colaboradorNome} encerrado como "DEVOLVIDO".`
+              : `Retorno registrado! Termo de ${termosSnap.docs[0].data().colaboradorNome} reativado como "ATIVO"`
+            );
           } else {
-            showToast('Retorno de conserto registrado com sucesso!');
+            showToast(isDiscarded ? 'Ferramenta descartada com sucesso!' : 'Retorno de conserto registrado com sucesso!');
           }
         } catch (termErr) {
-          console.warn('Aviso ao restaurar Termo:', termErr);
-          showToast('Retorno de conserto registrado com sucesso!');
+          console.warn('Aviso ao atualizar Termo:', termErr);
+          showToast(isDiscarded ? 'Ferramenta descartada com sucesso!' : 'Retorno de conserto registrado com sucesso!');
         }
       } else {
-        showToast('Retorno de conserto registrado com sucesso!');
+        showToast(isDiscarded ? 'Ferramenta descartada com sucesso!' : 'Retorno de conserto registrado com sucesso!');
       }
       setIsReturnModalOpen(false);
       setSelectedOs(null);
       setReturnFormData({
         dataRetorno: new Date().toISOString().substring(0, 10),
-        observacao: ''
+        observacao: '',
+        acaoRetorno: 'RETORNADO'
       });
     } catch (err) {
       console.error(err);
-      showToast('Erro ao registrar retorno: ' + err.message, 'error');
+      showToast('Erro ao registrar retorno/descarte: ' + err.message, 'error');
     }
   };
 
@@ -398,7 +418,7 @@ const Consertos = ({ onPrintOS }) => {
 
   // Calculate dynamic days in repair for open OS
   const getDaysInRepair = (osItem) => {
-    if (osItem.status === 'Retornado' || osItem.status === 'Cancelado') {
+    if (osItem.status === 'Retornado' || osItem.status === 'Cancelado' || osItem.status === 'Descartado') {
       return osItem.diasEmConserto || 0;
     }
     if (!osItem.dateEnvioObj) return 0;
@@ -423,6 +443,7 @@ const Consertos = ({ onPrintOS }) => {
     }
     if (filterStatusTab === 'RETORNADO' && statusNorm !== 'retornado') return false;
     if (filterStatusTab === 'CANCELADO' && statusNorm !== 'cancelado') return false;
+    if (filterStatusTab === 'DESCARTADO' && statusNorm !== 'descartado') return false;
 
     // Apply Excel Column Filters
     const evaluate = (itemVal, filterObj) => {
@@ -560,7 +581,7 @@ const Consertos = ({ onPrintOS }) => {
 
         {/* Tab Buttons */}
         <div style={{ display: 'flex', gap: '8px', backgroundColor: 'rgba(0,0,0,0.02)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-          {['TODOS', 'EM_CONSERTO', 'RETORNADO', 'CANCELADO'].map((tab) => (
+          {['TODOS', 'EM_CONSERTO', 'RETORNADO', 'CANCELADO', 'DESCARTADO'].map((tab) => (
             <button
               key={tab}
               onClick={() => setFilterStatusTab(tab)}
@@ -724,6 +745,7 @@ const Consertos = ({ onPrintOS }) => {
                     const isPending = statusNorm === 'enviado' || statusNorm === 'em conserto';
                     const isReturned = statusNorm === 'retornado';
                     const isCancelled = statusNorm === 'cancelado';
+                    const isDiscarded = statusNorm === 'descartado';
                     
                     return (
                       <tr key={os.id}>
@@ -750,14 +772,14 @@ const Consertos = ({ onPrintOS }) => {
                                 ? 'rgba(245, 158, 11, 0.15)'
                                 : isReturned
                                 ? 'rgba(71, 85, 105, 0.15)'
-                                : isCancelled
+                                : isCancelled || isDiscarded
                                 ? 'rgba(239, 68, 68, 0.15)'
                                 : 'rgba(16, 185, 129, 0.15)',
                               color: isPending
                                 ? 'var(--color-warning)'
                                 : isReturned
                                 ? 'var(--text-secondary)'
-                                : isCancelled
+                                : isCancelled || isDiscarded
                                 ? 'var(--color-danger)'
                                 : 'var(--color-success)',
                             }}
@@ -942,14 +964,27 @@ const Consertos = ({ onPrintOS }) => {
             <button onClick={() => { setIsReturnModalOpen(false); setSelectedOs(null); }} style={{ position: 'absolute', right: '20px', top: '20px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               <X size={20} />
             </button>
-            <h2 style={{ fontSize: '1.4rem', marginBottom: '16px', color: 'var(--text-primary)' }}>Registrar Retorno do Conserto</h2>
+            <h2 style={{ fontSize: '1.4rem', marginBottom: '16px', color: 'var(--text-primary)' }}>Finalizar Ordem de Serviço</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
-              Ao confirmar o retorno, a OS <strong>{selectedOs?.nOS}</strong> será fechada e a ferramenta <strong>{selectedOs?.tag ? `TAG: ${selectedOs.tag}` : selectedOs?.descricao}</strong> retornará automaticamente para o status <strong>Disponível</strong> no almoxarifado.
+              Selecione o destino da ferramenta <strong>{selectedOs?.tag ? `TAG: ${selectedOs.tag}` : selectedOs?.descricao}</strong> ao encerrar a OS <strong>{selectedOs?.nOS}</strong>.
             </p>
             
             <form onSubmit={handleReturnSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
-                <label className="form-label">Data de Retorno</label>
+                <label className="form-label">Destino / Ação</label>
+                <select
+                  className="form-input"
+                  value={returnFormData.acaoRetorno}
+                  onChange={(e) => setReturnFormData(prev => ({ ...prev, acaoRetorno: e.target.value }))}
+                  style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
+                >
+                  <option value="RETORNADO">Retornar para o Almoxarifado (Consertado)</option>
+                  <option value="DESCARTADO">Descartar Ferramenta (Sem Conserto / Sucata)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Data de Fechamento</label>
                 <input
                   type="date"
                   className="form-input"
@@ -960,19 +995,28 @@ const Consertos = ({ onPrintOS }) => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Observação sobre o Conserto (Ex: Troca de carvão, induzido)</label>
+                <label className="form-label">Observação sobre o Laudo (Ex: Troca de carvão, sem conserto)</label>
                 <input
                   type="text"
                   className="form-input"
                   value={returnFormData.observacao}
                   onChange={(e) => setReturnFormData(prev => ({ ...prev, observacao: e.target.value }))}
-                  placeholder="O que foi reparado?"
+                  placeholder={returnFormData.acaoRetorno === 'DESCARTADO' ? "Qual o motivo do descarte?" : "O que foi reparado?"}
                 />
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
                 <button type="button" onClick={() => { setIsReturnModalOpen(false); setSelectedOs(null); }} className="btn btn-secondary">Cancelar</button>
-                <button type="submit" className="btn btn-primary" style={{ backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}>Registrar Retorno</button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  style={{ 
+                    backgroundColor: returnFormData.acaoRetorno === 'DESCARTADO' ? 'var(--color-danger)' : 'var(--color-success)', 
+                    borderColor: returnFormData.acaoRetorno === 'DESCARTADO' ? 'var(--color-danger)' : 'var(--color-success)' 
+                  }}
+                >
+                  {returnFormData.acaoRetorno === 'DESCARTADO' ? 'Confirmar Descarte' : 'Registrar Retorno'}
+                </button>
               </div>
             </form>
           </div>

@@ -233,8 +233,9 @@ const Termos = ({ onPrintTerm }) => {
       setFilteredEqs([]);
     } else {
       const matches = equipamentos.filter(e => 
-        e.descricao.toLowerCase().includes(eqSearch.toLowerCase()) ||
-        e.tag.toLowerCase().includes(eqSearch.toLowerCase())
+        (e.descricao.toLowerCase().includes(eqSearch.toLowerCase()) ||
+        e.tag.toLowerCase().includes(eqSearch.toLowerCase())) &&
+        e.status !== 'Descartado'
       );
       setFilteredEqs(matches);
     }
@@ -360,7 +361,12 @@ const Termos = ({ onPrintTerm }) => {
             const matchedEq = equipamentos.find(eq => 
               (eq.tag || eq.cod || eq.id || '').toUpperCase() === tagUpper
             );
-            if (matchedEq) finalEqId = matchedEq.id;
+            if (matchedEq) {
+              if (matchedEq.status === 'Descartado') {
+                throw new Error('Esta ferramenta foi descartada e não pode ser emprestada.');
+              }
+              finalEqId = matchedEq.id;
+            }
           }
         }
 
