@@ -26,7 +26,8 @@ import {
   Undo2,
   Trash2,
   CheckCircle,
-  XCircle
+  XCircle,
+  Edit3
 } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
 import { Printer } from 'lucide-react';
@@ -53,6 +54,17 @@ const Consertos = ({ onPrintOS }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [selectedOs, setSelectedOs] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedOsForEdit, setSelectedOsForEdit] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    tag: '',
+    descricao: '',
+    status: 'Enviado',
+    dataOS: '',
+    dataEnvio: '',
+    dataRetorno: '',
+    observacao: ''
+  });
 
   // Toast Notification
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -342,6 +354,191 @@ const Consertos = ({ onPrintOS }) => {
     } catch (err) {
       console.error(err);
       showToast('Erro ao registrar retorno/descarte: ' + err.message, 'error');
+    }
+  };
+
+  const handleOpenEditOS = (osItem) => {
+    setSelectedOsForEdit(osItem);
+    setEditFormData({
+      tag: osItem.tag || '',
+      descricao: osItem.descricao || '',
+      status: osItem.status || 'Enviado',
+      dataOS: osItem.dateOSObj ? osItem.dateOSObj.toISOString().substring(0, 10) : '',
+      dataEnvio: osItem.dateEnvioObj ? osItem.dateEnvioObj.toISOString().substring(0, 10) : '',
+      dataRetorno: osItem.dateRetornoObj ? osItem.dateRetornoObj.toISOString().substring(0, 10) : '',
+      observacao: osItem.observacao || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedOsForEdit) return;
+
+    try {
+      const osRef = doc(db, COLLECTIONS.OS_CONSERTO, selectedOsForEdit.id);
+      
+      const newStatus = editFormData.status;
+      const newTag = editFormData.tag.toUpperCase().trim();
+      
+      const dateOsVal = new Date(editFormData.dataOS + 'T12:00:00');
+      const dateEnvioVal = new Date(editFormData.dataEnvio + 'T12:00:00');
+      const dateRetornoVal = (newStatus === 'Retornado' || newStatus === 'Descartado') 
+        ? new Date(editFormData.dataRetorno + 'T12:00:00') 
+        : null;
+
+      // Calculate days in repair
+      let diffDays = 0;
+      if (dateRetornoVal) {
+        const diffTime = Math.max(0, dateRetornoVal.getTime() - dateEnvioVal.getTime());
+        diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+
+      // Update OS in Firestore
+      await updateDoc(osRef, {
+        tag: newTag,
+        descricao: editFormData.descricao.trim(),
+        status: newStatus,
+        dataOS: Timestamp.fromDate(dateOsVal),
+        dataEnvio: Timestamp.fromDate(dateEnvioVal),
+        dataRetorno: dateRetornoVal ? Timestamp.fromDate(dateRetornoVal) : null,
+        diasEmConserto: diffDays,
+        observacao: editFormData.observacao.trim()
+      });
+
+      // Update equipment and terms if tag is provided
+      if (newTag) {
+        // Option 1: status changed to 'Retornado'
+        if (newStatus === 'Retornado') {
+          // 1. Equipment status -> 'Disponível'
+          const matchedEq = equipamentos.find(eq => eq.tag?.toUpperCase() === newTag || eq.id?.toUpperCase() === newTag);
+          if (matchedEq) {
+            await updateDoc(doc(db, COLLECTIONS.EQUIPAMENTOS, matchedEq.id), {
+              status: 'Disponível',
+              atualizadoEm: Timestamp.now()
+            });
+          }
+          // 2. Terms linked -> 'ATIVO' (was 'EM CONCERTO')
+          const termosRef = collection(db, COLLECTIONS.TERMOS);
+          const qTermos = query(termosRef, where('tag', '==', newTag), where('status', '==', 'EM CONCERTO'));
+          const termosSnap = await getDocs(qTermos);
+          for (const termoDoc of termosSnap.docs) {
+            const termData = termoDoc.data();
+            await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+              status: 'ATIVO',
+              dataDevolucao: null,
+              osVinculada: null
+            });
+            // Update collaborator counters
+            if (termData.colaboradorId) {
+              const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
+              const collabSnap = await getDoc(collabRef);
+              if (collabSnap.exists()) {
+                const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+                const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+                await updateDoc(collabRef, {
+                  totalItensAtivos: currentAtivos + (termData.quantidade || 1),
+                  totalItensDevolvidos: Math.max(0, currentDevolvidos - (termData.quantidade || 1)),
+                  atualizadoEm: Timestamp.now()
+                });
+              }
+            }
+          }
+        } 
+        // Option 2: status changed to 'Descartado'
+        else if (newStatus === 'Descartado') {
+          // 1. Equipment status -> 'Descartado'
+          const matchedEq = equipamentos.find(eq => eq.tag?.toUpperCase() === newTag || eq.id?.toUpperCase() === newTag);
+          if (matchedEq) {
+            await updateDoc(doc(db, COLLECTIONS.EQUIPAMENTOS, matchedEq.id), {
+              status: 'Descartado',
+              atualizadoEm: Timestamp.now()
+            });
+          }
+          // 2. Terms linked -> 'DEVOLVIDO' (either from 'EM CONCERTO' or 'ATIVO')
+          const termosRef = collection(db, COLLECTIONS.TERMOS);
+          const qTermos = query(termosRef, where('osVinculada', '==', selectedOsForEdit.nOS));
+          const termosSnap = await getDocs(qTermos);
+          
+          const qTermosTag = query(termosRef, where('tag', '==', newTag), where('status', '==', 'EM CONCERTO'));
+          const termosSnapTag = await getDocs(qTermosTag);
+          
+          const uniqueDocs = new Map();
+          termosSnap.forEach(d => uniqueDocs.set(d.id, d));
+          termosSnapTag.forEach(d => uniqueDocs.set(d.id, d));
+          
+          for (const [id, termoDoc] of uniqueDocs.entries()) {
+            const termData = termoDoc.data();
+            
+            // If the term was ATIVO, decrement collaborator active tools.
+            if (termData.status === 'ATIVO') {
+              if (termData.colaboradorId) {
+                const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
+                const collabSnap = await getDoc(collabRef);
+                if (collabSnap.exists()) {
+                  const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+                  const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+                  await updateDoc(collabRef, {
+                    totalItensAtivos: Math.max(0, currentAtivos - (termData.quantidade || 1)),
+                    totalItensDevolvidos: currentDevolvidos + (termData.quantidade || 1),
+                    atualizadoEm: Timestamp.now()
+                  });
+                }
+              }
+            }
+            
+            await updateDoc(doc(db, COLLECTIONS.TERMOS, id), {
+              status: 'DEVOLVIDO',
+              dataDevolucao: dateRetornoVal ? Timestamp.fromDate(dateRetornoVal) : Timestamp.now(),
+              osVinculada: null,
+              observacao: `${termData.observacao ? termData.observacao + ' | ' : ''}Descartada sem conserto na OS ${selectedOsForEdit.nOS} em ${(dateRetornoVal || new Date()).toLocaleDateString('pt-BR')}`
+            });
+          }
+        } 
+        // Option 3: status changed to 'Enviado' or 'Em Conserto'
+        else if (newStatus === 'Enviado' || newStatus === 'Em Conserto') {
+          // 1. Equipment status -> 'Em Manutenção'
+          const matchedEq = equipamentos.find(eq => eq.tag?.toUpperCase() === newTag || eq.id?.toUpperCase() === newTag);
+          if (matchedEq) {
+            await updateDoc(doc(db, COLLECTIONS.EQUIPAMENTOS, matchedEq.id), {
+              status: 'Em Manutenção',
+              atualizadoEm: Timestamp.now()
+            });
+          }
+          // 2. Terms linked should be set to 'EM CONCERTO'
+          const termosRef = collection(db, COLLECTIONS.TERMOS);
+          const qTermos = query(termosRef, where('tag', '==', newTag), where('status', '==', 'ATIVO'));
+          const termosSnap = await getDocs(qTermos);
+          for (const termoDoc of termosSnap.docs) {
+            const termData = termoDoc.data();
+            await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+              status: 'EM CONCERTO',
+              osVinculada: selectedOsForEdit.nOS,
+              dataDevolucao: Timestamp.now()
+            });
+            if (termData.colaboradorId) {
+              const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
+              const collabSnap = await getDoc(collabRef);
+              if (collabSnap.exists()) {
+                const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+                const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+                await updateDoc(collabRef, {
+                  totalItensAtivos: Math.max(0, currentAtivos - (termData.quantidade || 1)),
+                  totalItensDevolvidos: currentDevolvidos + (termData.quantidade || 1),
+                  atualizadoEm: Timestamp.now()
+                });
+              }
+            }
+          }
+        }
+      }
+
+      showToast('Ordem de Serviço atualizada com sucesso!');
+      setIsEditModalOpen(false);
+      setSelectedOsForEdit(null);
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao atualizar OS: ' + err.message, 'error');
     }
   };
 
@@ -818,6 +1015,14 @@ const Consertos = ({ onPrintOS }) => {
                             >
                               <Printer size={14} />
                             </button>
+                            <button
+                              onClick={() => handleOpenEditOS(os)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px', color: 'var(--color-primary-light)', borderColor: 'rgba(59, 130, 246, 0.2)' }}
+                              title="Editar Ordem de Serviço"
+                            >
+                              <Edit3 size={14} />
+                            </button>
                             {isPending && (
                               <button
                                 onClick={() => {
@@ -1017,6 +1222,115 @@ const Consertos = ({ onPrintOS }) => {
                 >
                   {returnFormData.acaoRetorno === 'DESCARTADO' ? 'Confirmar Descarte' : 'Registrar Retorno'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit OS Modal */}
+      {isEditModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(3, 7, 18, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          zIndex: 999, padding: '20px'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '550px', backgroundColor: 'var(--bg-app)', padding: '30px', position: 'relative' }}>
+            <button onClick={() => { setIsEditModalOpen(false); setSelectedOsForEdit(null); }} style={{ position: 'absolute', right: '20px', top: '20px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={20} />
+            </button>
+            <h2 style={{ fontSize: '1.4rem', marginBottom: '24px', color: 'var(--text-primary)' }}>Editar Ordem de Serviço ({selectedOsForEdit?.nOS})</h2>
+            
+            <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">TAG do Ativo</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editFormData.tag}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, tag: e.target.value.toUpperCase() }))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Status da OS</label>
+                  <select
+                    className="form-input"
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
+                    style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="Enviado">Enviado / Em Conserto</option>
+                    <option value="Retornado">Retornado</option>
+                    <option value="Cancelado">Cancelado</option>
+                    <option value="Descartado">Descartado (Sucata)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Descrição do Material</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editFormData.descricao}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Data da OS</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editFormData.dataOS}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, dataOS: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Data de Envio</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editFormData.dataEnvio}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, dataEnvio: e.target.value }))}
+                    required
+                  />
+                </div>
+                {(editFormData.status === 'Retornado' || editFormData.status === 'Descartado') && (
+                  <div className="form-group">
+                    <label className="form-label">Data Fechamento</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editFormData.dataRetorno}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, dataRetorno: e.target.value }))}
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Observações / Laudo Técnico</label>
+                <textarea
+                  className="form-input"
+                  rows="2"
+                  value={editFormData.observacao}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, observacao: e.target.value }))}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button type="button" onClick={() => { setIsEditModalOpen(false); setSelectedOsForEdit(null); }} className="btn btn-secondary">Cancelar</button>
+                <button type="submit" className="btn btn-primary">Salvar Alterações</button>
               </div>
             </form>
           </div>

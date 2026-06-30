@@ -8,7 +8,11 @@ import {
   deleteDoc,
   doc, 
   setDoc,
-  Timestamp 
+  Timestamp,
+  query,
+  where,
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import { Plus, Search, Edit3, Trash2, X, ShieldAlert, Cpu } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
@@ -115,11 +119,73 @@ const Equipamentos = () => {
       if (editItem) {
         // Update
         const docRef = doc(db, COLLECTIONS.EQUIPAMENTOS, editItem.id);
+        const oldStatus = editItem.status;
+        const newStatus = formData.status;
+
         await updateDoc(docRef, {
           ...formData,
           grupo: classifyGroup(formData.descricao),
           atualizadoEm: Timestamp.now()
         });
+
+        // Se o status mudou para 'Descartado'
+        if (newStatus === 'Descartado' && oldStatus !== 'Descartado' && formData.tag) {
+          const tagUpper = formData.tag.toUpperCase().trim();
+          
+          // 1. Fechar OSs abertas para este item como 'Descartado'
+          try {
+            const osRef = collection(db, COLLECTIONS.OS_CONSERTO);
+            const qOs = query(osRef, where('tag', '==', tagUpper));
+            const osSnap = await getDocs(qOs);
+            for (const osDoc of osSnap.docs) {
+              const osData = osDoc.data();
+              if (osData.status === 'Enviado' || osData.status === 'Em Conserto') {
+                await updateDoc(doc(db, COLLECTIONS.OS_CONSERTO, osDoc.id), {
+                  status: 'Descartado',
+                  dataRetorno: Timestamp.now(),
+                  observacao: `${osData.observacao ? osData.observacao + ' | ' : ''}Descartado manualmente na aba de ferramentas`
+                });
+              }
+            }
+          } catch (osErr) {
+            console.warn('Erro ao atualizar OS na alteração do Equipamento:', osErr);
+          }
+
+          // 2. Encerrar Termos ativos ou em conserto para este item
+          try {
+            const termosRef = collection(db, COLLECTIONS.TERMOS);
+            const qTermos = query(termosRef, where('tag', '==', tagUpper));
+            const termosSnap = await getDocs(qTermos);
+            for (const termoDoc of termosSnap.docs) {
+              const termData = termoDoc.data();
+              if (termData.status === 'ATIVO' || termData.status === 'EM CONCERTO') {
+                await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
+                  status: 'DEVOLVIDO',
+                  dataDevolucao: Timestamp.now(),
+                  osVinculada: null,
+                  observacao: `${termData.observacao ? termData.observacao + ' | ' : ''}Descartado manualmente na aba de ferramentas`
+                });
+
+                // Se o termo estava ATIVO, ajusta contadores do colaborador
+                if (termData.status === 'ATIVO' && termData.colaboradorId) {
+                  const collabRef = doc(db, COLLECTIONS.COLABORADORES, termData.colaboradorId);
+                  const collabSnap = await getDoc(collabRef);
+                  if (collabSnap.exists()) {
+                    const currentAtivos = collabSnap.data().totalItensAtivos || 0;
+                    const currentDevolvidos = collabSnap.data().totalItensDevolvidos || 0;
+                    await updateDoc(collabRef, {
+                      totalItensAtivos: Math.max(0, currentAtivos - (termData.quantidade || 1)),
+                      totalItensDevolvidos: currentDevolvidos + (termData.quantidade || 1),
+                      atualizadoEm: Timestamp.now()
+                    });
+                  }
+                }
+              }
+            }
+          } catch (termErr) {
+            console.warn('Erro ao atualizar Termos na alteração do Equipamento:', termErr);
+          }
+        }
       } else {
         // Add (using the TAG itself as document ID to enforce uniqueness)
         const docRef = doc(db, COLLECTIONS.EQUIPAMENTOS, formData.tag.trim());
