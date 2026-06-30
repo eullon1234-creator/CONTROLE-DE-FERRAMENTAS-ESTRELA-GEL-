@@ -483,6 +483,8 @@ const Termos = ({ onPrintTerm }) => {
             diasEmConserto: 0,
             tag: cleanTag.toUpperCase().trim(),
             observacao: 'Gerado automaticamente ao enviar para conserto',
+            colaboradorId: term.colaboradorId || '',
+            colaboradorNome: collabSnap.exists() ? collabSnap.data().nome : (term.colaboradorNome || ''),
             criadoEm: Timestamp.now()
           });
 

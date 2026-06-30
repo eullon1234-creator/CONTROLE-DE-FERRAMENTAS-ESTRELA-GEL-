@@ -10,10 +10,11 @@ import {
 import { Search, User, Wrench, ChevronRight, FileText, Printer, ArrowLeft } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
 
-const Colaboradores = ({ onPrintConsolidated }) => {
+const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
   const [colaboradores, setColaboradores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [osList, setOsList] = useState([]);
   
   const [activeFilters, setActiveFilters] = useState({
     nome: { selected: [], condition: { type: '', value: '' } },
@@ -40,7 +41,25 @@ const Colaboradores = ({ onPrintConsolidated }) => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const unsubscribeOS = onSnapshot(collection(db, COLLECTIONS.OS_CONSERTO), (snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        list.push({
+          id: doc.id,
+          ...data,
+          dateOSObj: data.dataOS?.toDate() || null,
+          dateEnvioObj: data.dataEnvio?.toDate() || null,
+          dateRetornoObj: data.dataRetorno?.toDate() || null,
+        });
+      });
+      setOsList(list);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeOS();
+    };
   }, []);
 
   // Fetch items for the selected collaborator
@@ -179,15 +198,32 @@ const Colaboradores = ({ onPrintConsolidated }) => {
             </div>
           </div>
           
-          {activeItems.length > 0 && (
+          <div style={{ display: 'flex', gap: '12px' }}>
             <button 
-              onClick={() => onPrintConsolidated(selectedCollab, activeItems)}
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              onClick={() => {
+                if (!onPrintHistorico) return;
+                const collabOS = osList.filter(os => 
+                  os.colaboradorId === selectedCollab.id || 
+                  (os.colaboradorNome && os.colaboradorNome.toUpperCase() === selectedCollab.nome.toUpperCase())
+                );
+                onPrintHistorico(selectedCollab, collabTermos, collabOS);
+              }}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--color-primary-light)', color: 'var(--color-primary-light)' }}
             >
-              <Printer size={16} /> Imprimir Termo Consolidado ({activeItems.length})
+              <FileText size={16} /> Ficha de Histórico (PDF)
             </button>
-          )}
+            
+            {activeItems.length > 0 && (
+              <button 
+                onClick={() => onPrintConsolidated(selectedCollab, activeItems)}
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <Printer size={16} /> Termo Consolidado ({activeItems.length})
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Details Grid */}

@@ -35,6 +35,9 @@ import { Printer } from 'lucide-react';
 const Consertos = ({ onPrintOS }) => {
   const [osList, setOsList] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
+  const [colaboradores, setColaboradores] = useState([]);
+  const [collabSearch, setCollabSearch] = useState('');
+  const [filteredCollabs, setFilteredCollabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatusTab, setFilterStatusTab] = useState('TODOS'); // TODOS, EM_CONSERTO, RETORNADO, CANCELADO
@@ -63,7 +66,9 @@ const Consertos = ({ onPrintOS }) => {
     dataOS: '',
     dataEnvio: '',
     dataRetorno: '',
-    observacao: ''
+    observacao: '',
+    colaboradorId: '',
+    colaboradorNome: ''
   });
 
   // Toast Notification
@@ -77,7 +82,9 @@ const Consertos = ({ onPrintOS }) => {
     dataOS: new Date().toISOString().substring(0, 10),
     dataEnvio: new Date().toISOString().substring(0, 10),
     status: 'Enviado',
-    observacao: ''
+    observacao: '',
+    colaboradorId: '',
+    colaboradorNome: ''
   });
 
   const [returnFormData, setReturnFormData] = useState({
@@ -127,11 +134,58 @@ const Consertos = ({ onPrintOS }) => {
       setEquipamentos(list);
     });
 
+    // 3. Fetch Collaborators for autocomplete list
+    const unsubscribeCollabs = onSnapshot(collection(db, COLLECTIONS.COLABORADORES), (snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setColaboradores(list);
+    });
+
     return () => {
       unsubscribeOs();
       unsubscribeEq();
+      unsubscribeCollabs();
     };
   }, []);
+
+  const handleCollabSearchChange = (val, isEdit = false) => {
+    setCollabSearch(val);
+    if (isEdit) {
+      setEditFormData(prev => ({ ...prev, colaboradorNome: val, colaboradorId: '' }));
+    } else {
+      setAddFormData(prev => ({ ...prev, colaboradorNome: val, colaboradorId: '' }));
+    }
+
+    if (val.trim().length > 1) {
+      const filtered = colaboradores.filter(c => 
+        c.nome.toLowerCase().includes(val.toLowerCase()) ||
+        c.funcao.toLowerCase().includes(val.toLowerCase())
+      );
+      setFilteredCollabs(filtered);
+    } else {
+      setFilteredCollabs([]);
+    }
+  };
+
+  const selectCollabForForm = (collab, isEdit = false) => {
+    setCollabSearch(collab.nome);
+    setFilteredCollabs([]);
+    if (isEdit) {
+      setEditFormData(prev => ({ 
+        ...prev, 
+        colaboradorId: collab.id, 
+        colaboradorNome: collab.nome 
+      }));
+    } else {
+      setAddFormData(prev => ({ 
+        ...prev, 
+        colaboradorId: collab.id, 
+        colaboradorNome: collab.nome 
+      }));
+    }
+  };
 
   // Helper to suggest next OS number
   useEffect(() => {
@@ -173,9 +227,29 @@ const Consertos = ({ onPrintOS }) => {
       const dateOsVal = new Date(addFormData.dataOS + 'T12:00:00');
       const dateEnvioVal = new Date(addFormData.dataEnvio + 'T12:00:00');
 
+      // 1. Find if there is an active Term for this TAG to link the collaborator
+      let linkedCollabId = addFormData.colaboradorId || '';
+      let linkedCollabNome = addFormData.colaboradorNome || '';
+      const tagUpper = addFormData.tag.toUpperCase().trim();
+      
+      if (!linkedCollabId && tagUpper) {
+        try {
+          const termosRef = collection(db, COLLECTIONS.TERMOS);
+          const q = query(termosRef, where('tag', '==', tagUpper), where('status', '==', 'ATIVO'));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const termData = snap.docs[0].data();
+            linkedCollabId = termData.colaboradorId || '';
+            linkedCollabNome = termData.colaboradorNome || '';
+          }
+        } catch (collabErr) {
+          console.warn('Erro ao buscar colaborador ativo para a OS:', collabErr);
+        }
+      }
+
       const newOs = {
         nOS: addFormData.nOS.toUpperCase().trim(),
-        tag: addFormData.tag.toUpperCase().trim(),
+        tag: tagUpper,
         descricao: addFormData.descricao.trim(),
         dataOS: Timestamp.fromDate(dateOsVal),
         dataEnvio: Timestamp.fromDate(dateEnvioVal),
@@ -183,10 +257,12 @@ const Consertos = ({ onPrintOS }) => {
         dataRetorno: null,
         diasEmConserto: 0,
         observacao: addFormData.observacao.trim(),
+        colaboradorId: linkedCollabId,
+        colaboradorNome: linkedCollabNome,
         criadoEm: Timestamp.now()
       };
 
-      // 1. Add OS document
+      // 2. Add OS document
       await addDoc(collection(db, COLLECTIONS.OS_CONSERTO), newOs);
 
       // 2. Se tem TAG, marca Equipamento como "Em Manutenção"
@@ -231,6 +307,8 @@ const Consertos = ({ onPrintOS }) => {
         showToast('Ordem de Serviço criada com sucesso!');
       }
       setIsAddModalOpen(false);
+      setCollabSearch('');
+      setFilteredCollabs([]);
       setAddFormData({
         nOS: '',
         tag: '',
@@ -238,7 +316,9 @@ const Consertos = ({ onPrintOS }) => {
         dataOS: new Date().toISOString().substring(0, 10),
         dataEnvio: new Date().toISOString().substring(0, 10),
         status: 'Enviado',
-        observacao: ''
+        observacao: '',
+        colaboradorId: '',
+        colaboradorNome: ''
       });
     } catch (err) {
       console.error(err);
@@ -366,8 +446,11 @@ const Consertos = ({ onPrintOS }) => {
       dataOS: osItem.dateOSObj ? osItem.dateOSObj.toISOString().substring(0, 10) : '',
       dataEnvio: osItem.dateEnvioObj ? osItem.dateEnvioObj.toISOString().substring(0, 10) : '',
       dataRetorno: osItem.dateRetornoObj ? osItem.dateRetornoObj.toISOString().substring(0, 10) : '',
-      observacao: osItem.observacao || ''
+      observacao: osItem.observacao || '',
+      colaboradorId: osItem.colaboradorId || '',
+      colaboradorNome: osItem.colaboradorNome || ''
     });
+    setCollabSearch(osItem.colaboradorNome || '');
     setIsEditModalOpen(true);
   };
 
@@ -403,7 +486,9 @@ const Consertos = ({ onPrintOS }) => {
         dataEnvio: Timestamp.fromDate(dateEnvioVal),
         dataRetorno: dateRetornoVal ? Timestamp.fromDate(dateRetornoVal) : null,
         diasEmConserto: diffDays,
-        observacao: editFormData.observacao.trim()
+        observacao: editFormData.observacao.trim(),
+        colaboradorId: editFormData.colaboradorId || '',
+        colaboradorNome: editFormData.colaboradorNome || ''
       });
 
       // Update equipment and terms if tag is provided
@@ -756,7 +841,7 @@ const Consertos = ({ onPrintOS }) => {
           <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px' }}>Controle de Ordens de Serviço (OS)</h1>
         </div>
 
-        <button onClick={() => setIsAddModalOpen(true)} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
+        <button onClick={() => { setCollabSearch(''); setFilteredCollabs([]); setIsAddModalOpen(true); }} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
           <Plus size={18} /> Novo Conserto / OS
         </button>
       </div>
@@ -1071,7 +1156,7 @@ const Consertos = ({ onPrintOS }) => {
           zIndex: 999, padding: '20px'
         }}>
           <div className="glass-panel" style={{ width: '100%', maxWidth: '550px', backgroundColor: 'var(--bg-app)', padding: '30px', position: 'relative' }}>
-            <button onClick={() => setIsAddModalOpen(false)} style={{ position: 'absolute', right: '20px', top: '20px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <button onClick={() => { setIsAddModalOpen(false); setCollabSearch(''); setFilteredCollabs([]); }} style={{ position: 'absolute', right: '20px', top: '20px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               <X size={20} />
             </button>
             <h2 style={{ fontSize: '1.4rem', marginBottom: '24px', color: 'var(--text-primary)' }}>Registrar Envio para Conserto (Nova OS)</h2>
@@ -1112,6 +1197,48 @@ const Consertos = ({ onPrintOS }) => {
                 />
               </div>
 
+              <div className="form-group" style={{ position: 'relative' }}>
+                <label className="form-label">Colaborador Associado (Quem usava/danificou - opcional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Buscar colaborador para vincular..."
+                  value={collabSearch}
+                  onChange={(e) => handleCollabSearchChange(e.target.value, false)}
+                />
+                {filteredCollabs.length > 0 && (
+                  <div className="glass-panel" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '8px',
+                    marginTop: '4px'
+                  }}>
+                    {filteredCollabs.map(collab => (
+                      <div
+                        key={collab.id}
+                        onClick={() => selectCollabForForm(collab, false)}
+                        style={{
+                          padding: '10px 14px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--border-card)',
+                          fontSize: '0.85rem'
+                        }}
+                        className="autocomplete-item"
+                      >
+                        <strong>{collab.nome}</strong> - {collab.funcao}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Data da OS</label>
@@ -1147,7 +1274,7 @@ const Consertos = ({ onPrintOS }) => {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn btn-secondary">Cancelar</button>
+                <button type="button" onClick={() => { setIsAddModalOpen(false); setCollabSearch(''); setFilteredCollabs([]); }} className="btn btn-secondary">Cancelar</button>
                 <button type="submit" className="btn btn-primary">Salvar OS</button>
               </div>
             </form>
@@ -1239,7 +1366,7 @@ const Consertos = ({ onPrintOS }) => {
           zIndex: 999, padding: '20px'
         }}>
           <div className="glass-panel" style={{ width: '100%', maxWidth: '550px', backgroundColor: 'var(--bg-app)', padding: '30px', position: 'relative' }}>
-            <button onClick={() => { setIsEditModalOpen(false); setSelectedOsForEdit(null); }} style={{ position: 'absolute', right: '20px', top: '20px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <button onClick={() => { setIsEditModalOpen(false); setSelectedOsForEdit(null); setCollabSearch(''); setFilteredCollabs([]); }} style={{ position: 'absolute', right: '20px', top: '20px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               <X size={20} />
             </button>
             <h2 style={{ fontSize: '1.4rem', marginBottom: '24px', color: 'var(--text-primary)' }}>Editar Ordem de Serviço ({selectedOsForEdit?.nOS})</h2>
@@ -1280,6 +1407,48 @@ const Consertos = ({ onPrintOS }) => {
                   onChange={(e) => setEditFormData(prev => ({ ...prev, descricao: e.target.value }))}
                   required
                 />
+              </div>
+
+              <div className="form-group" style={{ position: 'relative' }}>
+                <label className="form-label">Colaborador Associado (Quem usava/danificou - opcional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Buscar colaborador para vincular..."
+                  value={collabSearch}
+                  onChange={(e) => handleCollabSearchChange(e.target.value, true)}
+                />
+                {filteredCollabs.length > 0 && (
+                  <div className="glass-panel" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '8px',
+                    marginTop: '4px'
+                  }}>
+                    {filteredCollabs.map(collab => (
+                      <div
+                        key={collab.id}
+                        onClick={() => selectCollabForForm(collab, true)}
+                        style={{
+                          padding: '10px 14px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--border-card)',
+                          fontSize: '0.85rem'
+                        }}
+                        className="autocomplete-item"
+                      >
+                        <strong>{collab.nome}</strong> - {collab.funcao}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '16px' }}>
@@ -1329,7 +1498,7 @@ const Consertos = ({ onPrintOS }) => {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button type="button" onClick={() => { setIsEditModalOpen(false); setSelectedOsForEdit(null); }} className="btn btn-secondary">Cancelar</button>
+                <button type="button" onClick={() => { setIsEditModalOpen(false); setSelectedOsForEdit(null); setCollabSearch(''); setFilteredCollabs([]); }} className="btn btn-secondary">Cancelar</button>
                 <button type="submit" className="btn btn-primary">Salvar Alterações</button>
               </div>
             </form>

@@ -14,6 +14,7 @@ import Consertos from './pages/Consertos';
 import TermoPrint from './pages/TermoPrint';
 import TermoConsolidatedPrint from './pages/TermoConsolidatedPrint';
 import OSPrint from './pages/OSPrint';
+import ColaboradorHistoryPrint from './pages/ColaboradorHistoryPrint';
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -25,6 +26,7 @@ const App = () => {
   const [printTerm, setPrintTerm] = useState(null);
   const [printConsolidated, setPrintConsolidated] = useState(null); // { collaborator, items }
   const [printOS, setPrintOS] = useState(null); // OS to print
+  const [printHistorico, setPrintHistorico] = useState(null); // { collaborator, terms, osList }
 
   // PWA States
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -80,6 +82,11 @@ const App = () => {
   const handlePrintOS = (os) => {
     setPrintOS(os);
     setCurrentPage('print_os');
+  };
+
+  const handlePrintHistorico = (collaborator, terms, osList) => {
+    setPrintHistorico({ collaborator, terms, osList });
+    setCurrentPage('print_historico');
   };
 
   if (loading) {
@@ -145,6 +152,21 @@ const App = () => {
     );
   }
 
+  // 5. Render Printable Historico View directly without Sidebar/Layout
+  if (currentPage === 'print_historico' && printHistorico) {
+    return (
+      <ColaboradorHistoryPrint
+        collaborator={printHistorico.collaborator}
+        terms={printHistorico.terms}
+        osList={printHistorico.osList}
+        onBack={() => {
+          setPrintHistorico(null);
+          setCurrentPage('colaboradores');
+        }}
+      />
+    );
+  }
+
   // 4. Main authenticated dashboard layout
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -166,7 +188,7 @@ const App = () => {
         {currentPage === 'dashboard' && <Dashboard />}
         {currentPage === 'termos' && <Termos onPrintTerm={handlePrintTerm} />}
         {currentPage === 'equipamentos' && <Equipamentos />}
-        {currentPage === 'colaboradores' && <Colaboradores onPrintConsolidated={handlePrintConsolidated} />}
+        {currentPage === 'colaboradores' && <Colaboradores onPrintConsolidated={handlePrintConsolidated} onPrintHistorico={handlePrintHistorico} />}
         {currentPage === 'consertos' && <Consertos onPrintOS={handlePrintOS} />}
         {currentPage === 'importador' && <Importador />}
       </main>
