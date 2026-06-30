@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth } from './firebase/config';
+import { auth, db, COLLECTIONS } from './firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 
 // Component and page imports
 import Sidebar from './components/Sidebar';
@@ -32,6 +33,55 @@ const App = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [activeInstallTab, setActiveInstallTab] = useState('pc');
+
+  // Temporary Migration to correct 'discartado' / 'discartada' spelling in observations
+  useEffect(() => {
+    if (localStorage.getItem('spelling_migration_v1') === 'true') return;
+
+    const runMigration = async () => {
+      try {
+        console.log("Iniciando migração de correção ortográfica...");
+        
+        // 1. Corrigir Termos
+        const termosRef = collection(db, COLLECTIONS.TERMOS);
+        const termosSnap = await getDocs(termosRef);
+        let termosCount = 0;
+        for (const docSnap of termosSnap.docs) {
+          const data = docSnap.data();
+          if (data.observacao && (data.observacao.toLowerCase().includes('discartado') || data.observacao.toLowerCase().includes('discartada'))) {
+            const newObs = data.observacao
+              .replace(/discartado/gi, 'descartado')
+              .replace(/discartada/gi, 'descartada');
+            await updateDoc(doc(db, COLLECTIONS.TERMOS, docSnap.id), { observacao: newObs });
+            termosCount++;
+            console.log(`Termo corrigido (${docSnap.id}): "${data.observacao}" -> "${newObs}"`);
+          }
+        }
+
+        // 2. Corrigir OSs
+        const osRef = collection(db, COLLECTIONS.OS_CONSERTO);
+        const osSnap = await getDocs(osRef);
+        let osCount = 0;
+        for (const docSnap of osSnap.docs) {
+          const data = docSnap.data();
+          if (data.observacao && (data.observacao.toLowerCase().includes('discartado') || data.observacao.toLowerCase().includes('discartada'))) {
+            const newObs = data.observacao
+              .replace(/discartado/gi, 'descartado')
+              .replace(/discartada/gi, 'descartada');
+            await updateDoc(doc(db, COLLECTIONS.OS_CONSERTO, docSnap.id), { observacao: newObs });
+            osCount++;
+            console.log(`OS corrigida (${docSnap.id}): "${data.observacao}" -> "${newObs}"`);
+          }
+        }
+
+        console.log(`Migração concluída! Termos corrigidos: ${termosCount}, OSs corrigidas: ${osCount}`);
+        localStorage.setItem('spelling_migration_v1', 'true');
+      } catch (err) {
+        console.error("Erro na migração ortográfica:", err);
+      }
+    };
+    runMigration();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
