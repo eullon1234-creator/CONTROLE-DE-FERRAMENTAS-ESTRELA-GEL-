@@ -8,7 +8,7 @@ function loadExcelJS() {
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
     script.onload = () => resolve(window.ExcelJS);
-    script.onerror = (err) => {
+    script.onerror = () => {
       excelJsPromise = null;
       reject(new Error('Erro ao carregar a biblioteca de exportação Excel (ExcelJS). Verifique sua conexão com a internet.'));
     };
@@ -525,5 +525,210 @@ export async function exportFullReport({ termos, equipamentos, colaboradores, os
   } catch (error) {
     console.error('Erro ao exportar planilha:', error);
     alert('Ocorreu um erro ao gerar a planilha. Por favor, tente novamente ou verifique se você está conectado à internet.');
+  }
+}
+
+/**
+ * Exporta a planilha de Ferramentas Ativas (empréstimos ativos) com 10 linhas vazias.
+ * @param {Array} termosAtivos
+ */
+export async function exportActiveToolsExcel(termosAtivos) {
+  try {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Controle de Ferramentaria — UHE Estrela';
+    wb.lastModifiedBy = 'Controle de Ferramentaria';
+    wb.created = new Date();
+    wb.modified = new Date();
+
+    const sheet = wb.addWorksheet('🔧 Ferramentas Ativas');
+    setupSheetView(sheet);
+
+    const headers = [
+      'Nº',
+      'TAG / Código',
+      'Descrição da Ferramenta',
+      'Colaborador (Quem está com)',
+      'Função / Cargo',
+      'Data Empréstimo',
+      'Assinatura / Visto'
+    ];
+
+    const headerRow = sheet.addRow(headers);
+    styleHeader(headerRow);
+
+    termosAtivos.forEach((t, i) => {
+      const row = sheet.addRow([
+        i + 1,
+        t.tag || t.codEquipamento || '-',
+        t.descricaoMaterial || '-',
+        t.colaboradorNome || '-',
+        t.colaboradorFuncao || '-',
+        parseDateValue(t.dateObj || t.dataEntrada),
+        ''
+      ]);
+
+      styleDataRow(row, i);
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(6).numFmt = 'dd/mm/yyyy';
+      row.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    // Adicionar 10 linhas em branco com bordas para preenchimento manual
+    const dataRowsCount = termosAtivos.length;
+    for (let idx = 0; idx < 10; idx++) {
+      const row = sheet.addRow([
+        dataRowsCount + idx + 1,
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ]);
+
+      styleDataRow(row, dataRowsCount + idx);
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      
+      // Forçar aplicação de bordas em todas as células (mesmo vazias)
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+      });
+    }
+
+    autoWidth(sheet, [10, 18, 30, 25, 20, 18, 20]);
+
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    const filename = `Relatorio_Ferramentas_Ativas_${dateStr}.xlsx`;
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error('Erro ao exportar planilha de ferramentas ativas:', error);
+    alert('Ocorreu um erro ao gerar a planilha de ferramentas ativas. Verifique sua conexão com a internet.');
+  }
+}
+
+/**
+ * Exporta a planilha de Ferramentas Danificadas (em conserto pendente) com 10 linhas vazias.
+ * @param {Array} osDanificadas
+ * @param {Array} colaboradores
+ */
+export async function exportDamagedToolsExcel(osDanificadas, colaboradores) {
+  try {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Controle de Ferramentaria — UHE Estrela';
+    wb.lastModifiedBy = 'Controle de Ferramentaria';
+    wb.created = new Date();
+    wb.modified = new Date();
+
+    const sheet = wb.addWorksheet('🔧 Ferramentas Danificadas');
+    setupSheetView(sheet);
+
+    const headers = [
+      'Nº',
+      'TAG / Código',
+      'Descrição da Ferramenta',
+      'Colaborador Responsável',
+      'Função / Cargo',
+      'Data Envio',
+      'Status Conserto'
+    ];
+
+    const headerRow = sheet.addRow(headers);
+    styleHeader(headerRow);
+
+    osDanificadas.forEach((os, i) => {
+      const collab = colaboradores.find(c => c.id === os.colaboradorId || c.nome.toUpperCase() === os.colaboradorNome?.toUpperCase());
+      const role = collab ? collab.funcao : '-';
+
+      const row = sheet.addRow([
+        i + 1,
+        os.tag || '-',
+        os.descricao || '-',
+        os.colaboradorNome || '-',
+        role,
+        parseDateValue(os.dateEnvioObj || os.dataEnvio),
+        os.status || 'Enviado'
+      ]);
+
+      styleDataRow(row, i);
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(6).numFmt = 'dd/mm/yyyy';
+      row.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+      
+      const statusText = makeStatusText(os.status || 'Enviado');
+      applyStatusStyle(row.getCell(7), statusText);
+    });
+
+    // Adicionar 10 linhas em branco com bordas para preenchimento manual
+    const dataRowsCount = osDanificadas.length;
+    for (let idx = 0; idx < 10; idx++) {
+      const row = sheet.addRow([
+        dataRowsCount + idx + 1,
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ]);
+
+      styleDataRow(row, dataRowsCount + idx);
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      
+      // Forçar aplicação de bordas em todas as células (mesmo vazias)
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+      });
+    }
+
+    autoWidth(sheet, [10, 18, 30, 25, 20, 18, 20]);
+
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    const filename = `Relatorio_Ferramentas_Danificadas_${dateStr}.xlsx`;
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error('Erro ao exportar planilha de ferramentas danificadas:', error);
+    alert('Ocorreu um erro ao gerar a planilha de ferramentas danificadas. Verifique sua conexão com a internet.');
   }
 }

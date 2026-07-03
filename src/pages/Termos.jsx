@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { db, COLLECTIONS } from '../firebase/config';
 import { 
   collection, 
@@ -7,9 +7,6 @@ import {
   updateDoc, 
   runTransaction,
   Timestamp,
-  query,
-  orderBy,
-  limit,
   getDocs,
   getDoc
 } from 'firebase/firestore';
@@ -19,14 +16,14 @@ import {
   Check, 
   Printer, 
   X,
-  AlertTriangle,
-  Info,
   PenTool,
   CheckCircle,
-  XCircle
+  XCircle,
+  Download
 } from 'lucide-react';
 import SignaturePad from '../components/SignaturePad';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
+import { exportActiveToolsExcel } from '../utils/exportExcel';
 const classifyGroup = (desc) => {
   const d = String(desc || '').toLowerCase();
   if (d.includes('bateria') || d.includes('carregador')) return 'Bateria / Acessório';
@@ -36,13 +33,37 @@ const classifyGroup = (desc) => {
   return 'Ferramenta Manual';
 };
 
-const Termos = ({ onPrintTerm }) => {
+const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   const [termos, setTermos] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  const handlePrintActiveTools = () => {
+    const activeItems = termos.filter(t => t.status === 'ATIVO');
+    if (activeItems.length === 0) {
+      alert('Nenhum empréstimo ativo para imprimir.');
+      return;
+    }
+    const sortedActive = [...activeItems].sort((a, b) => 
+      (a.tag || a.codEquipamento || '').localeCompare(b.tag || b.codEquipamento || '')
+    );
+    onPrintRelatorio('ativas', sortedActive);
+  };
+
+  const handleExportActiveTools = () => {
+    const activeItems = termos.filter(t => t.status === 'ATIVO');
+    if (activeItems.length === 0) {
+      alert('Nenhum empréstimo ativo para exportar.');
+      return;
+    }
+    const sortedActive = [...activeItems].sort((a, b) => 
+      (a.tag || a.codEquipamento || '').localeCompare(b.tag || b.codEquipamento || '')
+    );
+    exportActiveToolsExcel(sortedActive);
+  };
   
   const [activeFilters, setActiveFilters] = useState({
     colaboradorNome: { selected: [], condition: { type: '', value: '' } },
@@ -662,9 +683,29 @@ const Termos = ({ onPrintTerm }) => {
           <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px' }}>Termos de Responsabilidade</h1>
         </div>
 
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
-          <Plus size={18} /> Novo Empréstimo
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            onClick={handlePrintActiveTools} 
+            className="btn btn-secondary" 
+            style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Imprimir relatório das ferramentas ativas em formato paisagem com linhas vazias no final"
+          >
+            <Printer size={18} /> Imprimir Ativas (Paisagem)
+          </button>
+          
+          <button 
+            onClick={handleExportActiveTools} 
+            className="btn btn-secondary" 
+            style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Exportar planilha Excel das ferramentas ativas com linhas vazias no final"
+          >
+            <Download size={18} /> Planilha Ativas
+          </button>
+
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
+            <Plus size={18} /> Novo Empréstimo
+          </button>
+        </div>
       </div>
 
       {/* Filters Toolbar */}

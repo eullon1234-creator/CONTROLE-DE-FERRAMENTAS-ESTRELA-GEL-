@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { auth, db, COLLECTIONS } from './firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
@@ -16,6 +16,7 @@ import TermoPrint from './pages/TermoPrint';
 import TermoConsolidatedPrint from './pages/TermoConsolidatedPrint';
 import OSPrint from './pages/OSPrint';
 import ColaboradorHistoryPrint from './pages/ColaboradorHistoryPrint';
+import RelatorioPrint from './pages/RelatorioPrint';
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -28,6 +29,7 @@ const App = () => {
   const [printConsolidated, setPrintConsolidated] = useState(null); // { collaborator, items }
   const [printOS, setPrintOS] = useState(null); // OS to print
   const [printHistorico, setPrintHistorico] = useState(null); // { collaborator, terms, osList }
+  const [printRelatorio, setPrintRelatorio] = useState(null); // { type, items }
 
   // PWA States
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -139,6 +141,11 @@ const App = () => {
     setCurrentPage('print_historico');
   };
 
+  const handlePrintRelatorio = (type, items) => {
+    setPrintRelatorio({ type, items });
+    setCurrentPage('print_relatorio');
+  };
+
   if (loading) {
     return (
       <div style={{
@@ -217,6 +224,21 @@ const App = () => {
     );
   }
 
+  // Render Printable Relatorio View directly without Sidebar/Layout
+  if (currentPage === 'print_relatorio' && printRelatorio) {
+    return (
+      <RelatorioPrint
+        type={printRelatorio.type}
+        items={printRelatorio.items}
+        onBack={() => {
+          const backPage = printRelatorio.type === 'ativas' ? 'termos' : 'consertos';
+          setPrintRelatorio(null);
+          setCurrentPage(backPage);
+        }}
+      />
+    );
+  }
+
   // 4. Main authenticated dashboard layout
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -236,10 +258,10 @@ const App = () => {
       {/* Pages Container */}
       <main style={{ flexGrow: 1, backgroundColor: 'var(--bg-app)', transition: 'background-color 0.3s' }}>
         {currentPage === 'dashboard' && <Dashboard />}
-        {currentPage === 'termos' && <Termos onPrintTerm={handlePrintTerm} />}
+        {currentPage === 'termos' && <Termos onPrintTerm={handlePrintTerm} onPrintRelatorio={handlePrintRelatorio} />}
         {currentPage === 'equipamentos' && <Equipamentos />}
         {currentPage === 'colaboradores' && <Colaboradores onPrintConsolidated={handlePrintConsolidated} onPrintHistorico={handlePrintHistorico} />}
-        {currentPage === 'consertos' && <Consertos onPrintOS={handlePrintOS} />}
+        {currentPage === 'consertos' && <Consertos onPrintOS={handlePrintOS} onPrintRelatorio={handlePrintRelatorio} />}
         {currentPage === 'importador' && <Importador />}
       </main>
 

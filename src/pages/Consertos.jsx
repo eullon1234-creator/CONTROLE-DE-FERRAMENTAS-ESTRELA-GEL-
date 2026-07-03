@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { db, COLLECTIONS } from '../firebase/config';
 import { 
   collection, 
@@ -16,23 +16,17 @@ import {
 import { 
   Plus, 
   Search, 
-  Hammer, 
-  Check, 
   X, 
-  Calendar, 
-  AlertTriangle, 
-  Clock, 
-  Wrench,
-  Undo2,
   Trash2,
   CheckCircle,
   XCircle,
   Edit3
 } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
-import { Printer } from 'lucide-react';
+import { Printer, Download } from 'lucide-react';
+import { exportDamagedToolsExcel } from '../utils/exportExcel';
 
-const Consertos = ({ onPrintOS }) => {
+const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
   const [osList, setOsList] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
@@ -41,6 +35,43 @@ const Consertos = ({ onPrintOS }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatusTab, setFilterStatusTab] = useState('TODOS'); // TODOS, EM_CONSERTO, RETORNADO, CANCELADO
+
+  const handlePrintDamagedTools = () => {
+    const damagedOSList = osList.filter(os => {
+      const statusNorm = (os.status || '').toLowerCase().trim();
+      return statusNorm === 'enviado' || statusNorm === 'em conserto';
+    });
+    if (damagedOSList.length === 0) {
+      alert('Nenhuma ferramenta danificada em manutenção pendente para imprimir.');
+      return;
+    }
+    const sortedDamaged = [...damagedOSList].sort((a, b) => 
+      (a.tag || '').localeCompare(b.tag || '')
+    );
+    const reportItems = sortedDamaged.map(os => {
+      const collab = colaboradores.find(c => c.id === os.colaboradorId || c.nome.toUpperCase() === os.colaboradorNome?.toUpperCase());
+      return {
+        ...os,
+        colaboradorFuncao: collab ? collab.funcao : '-'
+      };
+    });
+    onPrintRelatorio('danificadas', reportItems);
+  };
+
+  const handleExportDamagedTools = () => {
+    const damagedOSList = osList.filter(os => {
+      const statusNorm = (os.status || '').toLowerCase().trim();
+      return statusNorm === 'enviado' || statusNorm === 'em conserto';
+    });
+    if (damagedOSList.length === 0) {
+      alert('Nenhuma ferramenta danificada em manutenção pendente para exportar.');
+      return;
+    }
+    const sortedDamaged = [...damagedOSList].sort((a, b) => 
+      (a.tag || '').localeCompare(b.tag || '')
+    );
+    exportDamagedToolsExcel(sortedDamaged, colaboradores);
+  };
 
   const [activeFilters, setActiveFilters] = useState({
     nOS: { selected: [], condition: { type: '', value: '' } },
@@ -841,9 +872,29 @@ const Consertos = ({ onPrintOS }) => {
           <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px' }}>Controle de Ordens de Serviço (OS)</h1>
         </div>
 
-        <button onClick={() => { setCollabSearch(''); setFilteredCollabs([]); setIsAddModalOpen(true); }} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
-          <Plus size={18} /> Novo Conserto / OS
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            onClick={handlePrintDamagedTools} 
+            className="btn btn-secondary" 
+            style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Imprimir relatório das ferramentas danificadas em formato paisagem com linhas vazias no final"
+          >
+            <Printer size={18} /> Imprimir Danificadas (Paisagem)
+          </button>
+          
+          <button 
+            onClick={handleExportDamagedTools} 
+            className="btn btn-secondary" 
+            style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Exportar planilha Excel das ferramentas danificadas com linhas vazias no final"
+          >
+            <Download size={18} /> Planilha Danificadas
+          </button>
+
+          <button onClick={() => { setCollabSearch(''); setFilteredCollabs([]); setIsAddModalOpen(true); }} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
+            <Plus size={18} /> Novo Conserto / OS
+          </button>
+        </div>
       </div>
 
       {/* Toolbar Filters */}
