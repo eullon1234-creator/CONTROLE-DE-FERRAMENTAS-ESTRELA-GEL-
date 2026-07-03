@@ -35,13 +35,14 @@ const parseDateValue = (date) => {
 const makeStatusText = (status) => {
   const map = {
     ATIVO: '🟢 ATIVO',
+    ATIVA: '🟢 ATIVA',
     DEVOLVIDO: '⚫ DEVOLVIDO',
     'EM CONCERTO': '🟡 EM CONSERTO',
     Enviado: '🟡 ENVIADO',
     'Em Conserto': '🟡 EM CONSERTO',
     Retornado: '⚫ RETORNADO',
     Cancelado: '🔴 CANCELADO',
-    Disponível: '🟢 Disponível',
+    Disponível: '🟢 ATIVO',
     'Em Manutenção': '🟡 Em Manutenção',
     Inativo: '⚫ Inativo',
   };
@@ -55,7 +56,7 @@ const applyStatusStyle = (cell, text) => {
   let bg = null;
   let fg = null;
   
-  if (upper.includes('ATIVO') || upper.includes('DISPONÍVEL') || upper.includes('DISPONIVEL')) {
+  if (upper.includes('ATIVO') || upper.includes('ATIVA') || upper.includes('DISPONÍVEL') || upper.includes('DISPONIVEL')) {
     bg = 'DEF7EC'; // soft green
     fg = '03543F'; // dark green
   } else if (upper.includes('DEVOLVIDO') || upper.includes('RETORNADO') || upper.includes('INATIVO')) {
@@ -233,7 +234,8 @@ function buildResumoSheet(workbook) {
 
   addSection('CATÁLOGO DE EQUIPAMENTOS', [
     ['Total de Equipamentos no Catálogo', { formula: "COUNTA('🔧 Equipamentos'!B:B)-1" }],
-    ['Equipamentos Disponíveis', { formula: "COUNTIF('🔧 Equipamentos'!G:G, \"*Disponível\")" }],
+    ['Equipamentos no Almoxarifado (ATIVO)', { formula: "COUNTIF('🔧 Equipamentos'!G:G, \"*ATIVO\")" }],
+    ['Equipamentos Cautelados (ATIVA)', { formula: "COUNTIF('🔧 Equipamentos'!G:G, \"*ATIVA\")" }],
     ['Equipamentos em Manutenção', { formula: "COUNTIF('🔧 Equipamentos'!G:G, \"*Manutenção\")" }]
   ]);
 
@@ -310,7 +312,7 @@ function buildTermosSheet(workbook, termos) {
   autoWidth(sheet, [15, 25, 20, 30, 15, 15, 15, 18, 12, 18, 20, 18, 30]);
 }
 
-function buildEquipamentosSheet(workbook, equipamentos) {
+function buildEquipamentosSheet(workbook, equipamentos, termos) {
   const sheet = workbook.addWorksheet('🔧 Equipamentos');
   setupSheetView(sheet);
 
@@ -330,7 +332,13 @@ function buildEquipamentosSheet(workbook, equipamentos) {
   styleHeader(headerRow);
 
   equipamentos.forEach((e, i) => {
-    const statusVal = makeStatusText(e.status);
+    const isCautelado = e.tag && termos.some(t => t.status === 'ATIVO' && (t.tag || t.codEquipamento || '').toUpperCase().trim() === e.tag.toUpperCase().trim());
+    let statusText = e.status || 'Disponível';
+    if (statusText === 'Disponível' || statusText === 'ATIVO' || statusText === 'ATIVA') {
+      statusText = isCautelado ? 'ATIVA' : 'ATIVO';
+    }
+    const statusVal = makeStatusText(statusText);
+
     const row = sheet.addRow([
       e.tag || e.cod || e.id || '-',
       e.descricao || '-',
@@ -495,7 +503,7 @@ export async function exportFullReport({ termos, equipamentos, colaboradores, os
     buildTermosSheet(wb, termos);
 
     // Sheet 3: Equipamentos
-    buildEquipamentosSheet(wb, equipamentos);
+    buildEquipamentosSheet(wb, equipamentos, termos);
 
     // Sheet 4: Colaboradores
     buildColaboradoresSheet(wb, colaboradores, termos);

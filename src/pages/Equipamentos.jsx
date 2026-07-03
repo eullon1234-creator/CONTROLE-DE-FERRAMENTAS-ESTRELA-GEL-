@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { db, COLLECTIONS } from '../firebase/config';
 import { 
   collection, 
   onSnapshot, 
-  addDoc, 
   updateDoc, 
   deleteDoc,
   doc, 
@@ -27,11 +26,27 @@ const classifyGroup = (desc) => {
 
 const Equipamentos = () => {
   const [equipamentos, setEquipamentos] = useState([]);
+  const [termos, setTermos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
   // Custom filters
   const [filterType, setFilterType] = useState('TODOS'); 
+
+  const isCautelado = (tag) => {
+    if (!tag) return false;
+    const tagUpper = tag.toUpperCase().trim();
+    return termos.some(t => t.status === 'ATIVO' && (t.tag || t.codEquipamento || '').toUpperCase().trim() === tagUpper);
+  };
+
+  const getDisplayStatus = (item) => {
+    const statusVal = item.status || 'Disponível';
+    if (statusVal === 'Disponível' || statusVal === 'ATIVO' || statusVal === 'ATIVA') {
+      const tagVal = item.tag || item.cod || item.id;
+      return isCautelado(tagVal) ? 'ATIVA' : 'ATIVO';
+    }
+    return statusVal;
+  };
 
   const [activeFilters, setActiveFilters] = useState({
     tag: { selected: [], condition: { type: '', value: '' } },
@@ -73,7 +88,18 @@ const Equipamentos = () => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const unsubscribeTermos = onSnapshot(collection(db, COLLECTIONS.TERMOS), (snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setTermos(list);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeTermos();
+    };
   }, []);
 
   const handleOpenEdit = (item) => {
@@ -221,6 +247,9 @@ const Equipamentos = () => {
       if (key === 'tag') {
         return eq.tag || eq.cod || eq.id || '-';
       }
+      if (key === 'status') {
+        return getDisplayStatus(eq);
+      }
       return eq[key] || '-';
     });
     return Array.from(new Set(vals)).sort((a, b) => String(a).localeCompare(String(b)));
@@ -289,9 +318,11 @@ const Equipamentos = () => {
     return Object.keys(activeFilters).every(colKey => {
       const filterObj = activeFilters[colKey];
       
-      let itemVal = '';
+      let itemVal;
       if (colKey === 'tag') {
         itemVal = String(eq.tag || eq.cod || eq.id || '-');
+      } else if (colKey === 'status') {
+        itemVal = getDisplayStatus(eq);
       } else {
         itemVal = String(eq[colKey] || '-');
       }
@@ -548,13 +579,13 @@ const Equipamentos = () => {
                       <span style={{ 
                         fontSize: '0.75rem', 
                         fontWeight: 700, 
-                        color: item.status === 'Disponível' 
+                        color: (item.status === 'Disponível' || item.status === 'ATIVO' || item.status === 'ATIVA') 
                           ? 'var(--color-success)' 
                           : item.status === 'Descartado' 
                           ? 'var(--color-danger)' 
                           : 'var(--color-warning)' 
                       }}>
-                        {item.status}
+                        {getDisplayStatus(item)}
                       </span>
                     </td>
                     <td>
@@ -690,7 +721,7 @@ const Equipamentos = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
                     style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
                   >
-                    <option value="Disponível">Disponível</option>
+                    <option value="Disponível">ATIVO</option>
                     <option value="Em Manutenção">Em Manutenção</option>
                     <option value="Inativo">Inativo</option>
                     <option value="Descartado">Descartado</option>
