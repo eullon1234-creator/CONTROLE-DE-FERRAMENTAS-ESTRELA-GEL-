@@ -1,9 +1,9 @@
 const CACHE_NAME = 'gel-ferramentaria-v1';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/logo.png',
-  '/favicon.svg'
+  './',
+  './index.html',
+  './logo.png',
+  './favicon.svg'
 ];
 
 self.addEventListener('install', (e) => {
