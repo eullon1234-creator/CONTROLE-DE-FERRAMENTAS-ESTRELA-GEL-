@@ -11,7 +11,8 @@ import {
   getDocs,
   query,
   where,
-  getDoc
+  getDoc,
+  limit
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -34,7 +35,9 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
   const [filteredCollabs, setFilteredCollabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterStatusTab, setFilterStatusTab] = useState('TODOS'); // TODOS, EM_CONSERTO, RETORNADO, CANCELADO
+  const [filterStatusTab, setFilterStatusTab] = useState('TODOS'); // TODOS, EM_CONSERTO, RETORNADO, CANCELADO, DESCARTADO
+  const [limitCount, setLimitCount] = useState(200);
+  const [hasMore, setHasMore] = useState(false);
 
   const handlePrintDamagedTools = () => {
     const damagedOSList = osList.filter(os => {
@@ -131,9 +134,29 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     }, 4000);
   };
 
+  // Reset limitCount when filter tab changes
   useEffect(() => {
-    // 1. Fetch OS list
-    const unsubscribeOs = onSnapshot(collection(db, COLLECTIONS.OS_CONSERTO), (snapshot) => {
+    setLimitCount(200);
+  }, [filterStatusTab]);
+
+  useEffect(() => {
+    setLoading(true);
+    let q;
+    const collRef = collection(db, COLLECTIONS.OS_CONSERTO);
+
+    if (filterStatusTab === 'EM_CONSERTO') {
+      q = query(collRef, where('status', 'in', ['Enviado', 'Em Conserto']));
+    } else if (filterStatusTab === 'RETORNADO') {
+      q = query(collRef, where('status', '==', 'Retornado'), limit(limitCount + 1));
+    } else if (filterStatusTab === 'CANCELADO') {
+      q = query(collRef, where('status', '==', 'Cancelado'), limit(limitCount + 1));
+    } else if (filterStatusTab === 'DESCARTADO') {
+      q = query(collRef, where('status', '==', 'Descartado'), limit(limitCount + 1));
+    } else {
+      q = query(collRef, limit(limitCount + 1));
+    }
+
+    const unsubscribeOs = onSnapshot(q, (snapshot) => {
       const list = [];
       snapshot.forEach(doc => {
         const data = doc.data();
@@ -152,10 +175,32 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
           dateRetornoStr: dateRetornoObj ? dateRetornoObj.toLocaleDateString('pt-BR') : '-'
         });
       });
-      setOsList(list);
+
+      // Stable default sort (newest first)
+      list.sort((a, b) => (b.nOS || '').localeCompare(a.nOS || ''));
+
+      if (filterStatusTab !== 'EM_CONSERTO') {
+        if (list.length > limitCount) {
+          setHasMore(true);
+          setOsList(list.slice(0, limitCount));
+        } else {
+          setHasMore(false);
+          setOsList(list);
+        }
+      } else {
+        setHasMore(false);
+        setOsList(list);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error loading OS list:", error);
       setLoading(false);
     });
 
+    return () => unsubscribeOs();
+  }, [filterStatusTab, limitCount]);
+
+  useEffect(() => {
     // 2. Fetch Equipments to check valid tags and update status
     const unsubscribeEq = onSnapshot(collection(db, COLLECTIONS.EQUIPAMENTOS), (snapshot) => {
       const list = [];
@@ -175,7 +220,6 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     });
 
     return () => {
-      unsubscribeOs();
       unsubscribeEq();
       unsubscribeCollabs();
     };
@@ -1188,6 +1232,18 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                 </tbody>
               </table>
             </div>
+            {hasMore && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setLimitCount(prev => prev + 200)}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 24px', borderRadius: '6px', fontSize: '0.85rem' }}
+                >
+                  Carregar Mais Itens
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>

@@ -21,6 +21,42 @@ const SignaturePad = ({ onSave, onClear }) => {
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'var(--text-primary)';
     ctx.lineWidth = 2.5;
+
+    const handleResize = () => {
+      if (!canvas) return;
+      const currentRect = canvas.getBoundingClientRect();
+
+      // Create a temporary canvas to save current drawing
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(canvas, 0, 0);
+
+      // Resize the main canvas to match the new container width/height
+      canvas.width = currentRect.width * 2;
+      canvas.height = currentRect.height * 2;
+
+      // Re-setup scale and context styles
+      const newCtx = canvas.getContext('2d');
+      newCtx.scale(2, 2);
+      newCtx.lineCap = 'round';
+      newCtx.lineJoin = 'round';
+      newCtx.strokeStyle = 'var(--text-primary)';
+      newCtx.lineWidth = 2.5;
+
+      // Draw the temporary canvas content back, scaling it to the new size
+      newCtx.drawImage(
+        tempCanvas,
+        0, 0, tempCanvas.width, tempCanvas.height,
+        0, 0, currentRect.width, currentRect.height
+      );
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   const getCoordinates = (e) => {

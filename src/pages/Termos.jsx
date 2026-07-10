@@ -8,7 +8,10 @@ import {
   runTransaction,
   Timestamp,
   getDocs,
-  getDoc
+  getDoc,
+  query,
+  where,
+  limit
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -40,6 +43,8 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [limitCount, setLimitCount] = useState(200);
+  const [hasMore, setHasMore] = useState(false);
 
   const handlePrintActiveTools = () => {
     const activeItems = termos.filter(t => t.status === 'ATIVO');
@@ -124,9 +129,27 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
     }, 4000);
   };
 
+  // Reset limitCount when status filter changes
   useEffect(() => {
-    // 1. Listen to Termos
-    const unsubscribeTermos = onSnapshot(collection(db, COLLECTIONS.TERMOS), (snapshot) => {
+    setLimitCount(200);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    setLoading(true);
+    let q;
+    const collRef = collection(db, COLLECTIONS.TERMOS);
+
+    if (statusFilter === 'ATIVO') {
+      q = query(collRef, where('status', '==', 'ATIVO'));
+    } else if (statusFilter === 'EM CONCERTO') {
+      q = query(collRef, where('status', '==', 'EM CONCERTO'));
+    } else if (statusFilter === 'DEVOLVIDO') {
+      q = query(collRef, where('status', '==', 'DEVOLVIDO'), limit(limitCount + 1));
+    } else {
+      q = query(collRef, limit(limitCount + 1));
+    }
+
+    const unsubscribeTermos = onSnapshot(q, (snapshot) => {
       const list = [];
       snapshot.forEach(doc => {
         const data = doc.data();
@@ -138,10 +161,29 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
         });
       });
       list.sort((a, b) => b.dateObj - a.dateObj);
-      setTermos(list);
+
+      if (statusFilter === 'DEVOLVIDO' || statusFilter === 'TODOS') {
+        if (list.length > limitCount) {
+          setHasMore(true);
+          setTermos(list.slice(0, limitCount));
+        } else {
+          setHasMore(false);
+          setTermos(list);
+        }
+      } else {
+        setHasMore(false);
+        setTermos(list);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error loading terms:", error);
       setLoading(false);
     });
 
+    return () => unsubscribeTermos();
+  }, [statusFilter, limitCount]);
+
+  useEffect(() => {
     // 2. Fetch Catalog for autocomplete
     const unsubscribeEq = onSnapshot(collection(db, COLLECTIONS.EQUIPAMENTOS), (snapshot) => {
       const list = [];
@@ -161,7 +203,6 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
     });
 
     return () => {
-      unsubscribeTermos();
       unsubscribeEq();
       unsubscribeCollabs();
     };
@@ -989,6 +1030,18 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                 </tbody>
               </table>
             </div>
+            {hasMore && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setLimitCount(prev => prev + 200)}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 24px', borderRadius: '6px', fontSize: '0.85rem' }}
+                >
+                  Carregar Mais Itens
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
