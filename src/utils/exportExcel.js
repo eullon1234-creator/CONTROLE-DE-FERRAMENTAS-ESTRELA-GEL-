@@ -37,12 +37,15 @@ const makeStatusText = (status) => {
     ATIVO: '🟢 ATIVO',
     ATIVA: '🟢 ATIVA',
     DEVOLVIDO: '⚫ DEVOLVIDO',
+    'DEVOLVIDO AO FORNECEDOR': '⚫ DEVOLVIDO AO FORNECEDOR',
     'EM CONCERTO': '🟡 EM CONSERTO',
     Enviado: '🟡 ENVIADO',
     'Em Conserto': '🟡 EM CONSERTO',
     Retornado: '⚫ RETORNADO',
     Cancelado: '🔴 CANCELADO',
-    Disponível: '🟢 ATIVO',
+    Disponível: '🟢 DISPONÍVEL',
+    Cautelado: '🔵 CAUTELADO',
+    'Devolvido ao Fornecedor': '⚫ DEVOLVIDO AO FORNECEDOR',
     'Em Manutenção': '🟡 Em Manutenção',
     Inativo: '⚫ Inativo',
   };
@@ -56,12 +59,18 @@ const applyStatusStyle = (cell, text) => {
   let bg = null;
   let fg = null;
   
-  if (upper.includes('ATIVO') || upper.includes('ATIVA') || upper.includes('DISPONÍVEL') || upper.includes('DISPONIVEL')) {
+  if (upper.includes('DISPONÍVEL') || upper.includes('DISPONIVEL')) {
     bg = 'DEF7EC'; // soft green
     fg = '03543F'; // dark green
-  } else if (upper.includes('DEVOLVIDO') || upper.includes('RETORNADO') || upper.includes('INATIVO')) {
+  } else if (upper.includes('ATIVO') || upper.includes('ATIVA')) {
+    bg = 'DEF7EC'; // soft green
+    fg = '03543F'; // dark green
+  } else if (upper.includes('DEVOLVIDO') || upper.includes('RETORNADO') || upper.includes('INATIVO') || upper.includes('FORNECEDOR')) {
     bg = 'F3F4F6'; // soft gray
     fg = '374151'; // dark gray
+  } else if (upper.includes('CAUTELADO')) {
+    bg = 'E1EFFE'; // soft blue
+    fg = '1E429F'; // dark blue
   } else if (upper.includes('CONSERTO') || upper.includes('MANUTENÇÃO') || upper.includes('MANUTENCAO') || upper.includes('ENVIADO')) {
     bg = 'FEF3C7'; // soft yellow
     fg = '78350F'; // dark yellow
@@ -227,16 +236,18 @@ function buildResumoSheet(workbook) {
   addSection('TERMOS DE RESPONSABILIDADE', [
     ['Total de Termos Cadastrados', { formula: "COUNTA('📋 Termos de Resp.'!B:B)-1" }],
     ['Termos ATIVOS', { formula: "COUNTIF('📋 Termos de Resp.'!J:J, \"*ATIVO\")" }],
-    ['Termos DEVOLVIDOS', { formula: "COUNTIF('📋 Termos de Resp.'!J:J, \"*DEVOLVIDO\")" }],
+    ['Termos DEVOLVIDOS AO ESTOQUE', { formula: "COUNTIF('📋 Termos de Resp.'!J:J, \"*DEVOLVIDO\")" }],
+    ['Termos DEVOLVIDOS AO FORNECEDOR', { formula: "COUNTIF('📋 Termos de Resp.'!J:J, \"*FORNECEDOR\")" }],
     ['Termos EM CONSERTO', { formula: "COUNTIF('📋 Termos de Resp.'!J:J, \"*CONSERTO\")" }],
     ['Total de Unidades Ativas (Qtd)', { formula: "SUMIF('📋 Termos de Resp.'!J:J, \"*ATIVO\", '📋 Termos de Resp.'!I:I)" }]
   ]);
 
   addSection('CATÁLOGO DE EQUIPAMENTOS', [
     ['Total de Equipamentos no Catálogo', { formula: "COUNTA('🔧 Equipamentos'!B:B)-1" }],
-    ['Equipamentos no Almoxarifado (ATIVO)', { formula: "COUNTIF('🔧 Equipamentos'!G:G, \"*ATIVO\")" }],
-    ['Equipamentos Cautelados (ATIVA)', { formula: "COUNTIF('🔧 Equipamentos'!G:G, \"*ATIVA\")" }],
-    ['Equipamentos em Manutenção', { formula: "COUNTIF('🔧 Equipamentos'!G:G, \"*Manutenção\")" }]
+    ['Equipamentos no Almoxarifado (Disponível)', { formula: "COUNTIF('🔧 Equipamentos'!I:I, \"*DISPONÍVEL\")" }],
+    ['Equipamentos Cautelados', { formula: "COUNTIF('🔧 Equipamentos'!I:I, \"*CAUTELADO\")" }],
+    ['Equipamentos em Manutenção', { formula: "COUNTIF('🔧 Equipamentos'!I:I, \"*Manutenção\")" }],
+    ['Equipamentos Devolvidos ao Fornecedor', { formula: "COUNTIF('🔧 Equipamentos'!I:I, \"*FORNECEDOR\")" }]
   ]);
 
   addSection('COLABORADORES', [
@@ -323,6 +334,8 @@ function buildEquipamentosSheet(workbook, equipamentos, termos) {
     'Categoria',
     'Unidade',
     'Qtd Total',
+    'Tipo de Posse',
+    'Locador / Fornecedor',
     'Status',
     'Setor',
     'Observação'
@@ -335,7 +348,7 @@ function buildEquipamentosSheet(workbook, equipamentos, termos) {
     const isCautelado = e.tag && termos.some(t => t.status === 'ATIVO' && (t.tag || t.codEquipamento || '').toUpperCase().trim() === e.tag.toUpperCase().trim());
     let statusText = e.status || 'Disponível';
     if (statusText === 'Disponível' || statusText === 'ATIVO' || statusText === 'ATIVA') {
-      statusText = isCautelado ? 'ATIVA' : 'ATIVO';
+      statusText = isCautelado ? 'Cautelado' : 'Disponível';
     }
     const statusVal = makeStatusText(statusText);
 
@@ -346,6 +359,8 @@ function buildEquipamentosSheet(workbook, equipamentos, termos) {
       e.grupo || '-',
       e.und || 'Unidade',
       Number(e.quantidadeTotal || 0),
+      e.tipoPosse || 'Própria',
+      e.locador || '-',
       statusVal,
       e.setor || 'Almoxarifado',
       e.observacao || '-'
@@ -357,14 +372,15 @@ function buildEquipamentosSheet(workbook, equipamentos, termos) {
     row.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
     row.getCell(6).numFmt = '#,##0';
     row.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+    row.getCell(7).alignment = { vertical: 'middle', horizontal: 'center' };
     
-    applyStatusStyle(row.getCell(7), statusVal);
+    applyStatusStyle(row.getCell(9), statusVal);
     
-    row.getCell(8).alignment = { vertical: 'middle', horizontal: 'center' };
+    row.getCell(10).alignment = { vertical: 'middle', horizontal: 'center' };
   });
 
-  sheet.autoFilter = `A1:I${equipamentos.length + 1}`;
-  autoWidth(sheet, [15, 30, 20, 18, 12, 12, 18, 18, 30]);
+  sheet.autoFilter = `A1:K${equipamentos.length + 1}`;
+  autoWidth(sheet, [15, 30, 20, 18, 12, 12, 15, 20, 18, 18, 30]);
 }
 
 function buildColaboradoresSheet(workbook, colaboradores, termos) {

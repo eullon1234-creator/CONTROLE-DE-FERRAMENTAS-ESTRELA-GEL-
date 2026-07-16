@@ -43,7 +43,7 @@ const Equipamentos = () => {
     const statusVal = item.status || 'Disponível';
     if (statusVal === 'Disponível' || statusVal === 'ATIVO' || statusVal === 'ATIVA') {
       const tagVal = item.tag || item.cod || item.id;
-      return isCautelado(tagVal) ? 'ATIVA' : 'ATIVO';
+      return isCautelado(tagVal) ? 'Cautelado' : 'Disponível';
     }
     return statusVal;
   };
@@ -55,7 +55,8 @@ const Equipamentos = () => {
     marcaModelo: { selected: [], condition: { type: '', value: '' } },
     und: { selected: [], condition: { type: '', value: '' } },
     quantidadeTotal: { selected: [], condition: { type: '', value: '' } },
-    status: { selected: [], condition: { type: '', value: '' } }
+    status: { selected: [], condition: { type: '', value: '' } },
+    tipoPosse: { selected: [], condition: { type: '', value: '' } }
   });
   const [sortConfig, setSortConfig] = useState({ key: 'tag', direction: 'asc' });
 
@@ -72,6 +73,8 @@ const Equipamentos = () => {
     und: 'Unidade',
     quantidadeTotal: 1,
     status: 'Disponível',
+    tipoPosse: 'Própria',
+    locador: '',
     setor: 'Almoxarifado',
     observacao: ''
   });
@@ -112,6 +115,8 @@ const Equipamentos = () => {
       und: item.und || 'Unidade',
       quantidadeTotal: item.quantidadeTotal || 1,
       status: item.status || 'Disponível',
+      tipoPosse: item.tipoPosse || 'Própria',
+      locador: item.locador || '',
       setor: item.setor || 'Almoxarifado',
       observacao: item.observacao || ''
     });
@@ -128,6 +133,8 @@ const Equipamentos = () => {
       und: 'Unidade',
       quantidadeTotal: 1,
       status: 'Disponível',
+      tipoPosse: 'Própria',
+      locador: '',
       setor: 'Almoxarifado',
       observacao: ''
     });
@@ -154,11 +161,13 @@ const Equipamentos = () => {
           atualizadoEm: Timestamp.now()
         });
 
-        // Se o status mudou para 'Descartado'
-        if (newStatus === 'Descartado' && oldStatus !== 'Descartado' && formData.tag) {
+        // Se o status mudou para 'Descartado' ou 'Devolvido ao Fornecedor'
+        if ((newStatus === 'Descartado' || newStatus === 'Devolvido ao Fornecedor') && oldStatus !== newStatus && formData.tag) {
           const tagUpper = formData.tag.toUpperCase().trim();
+          const reasonStr = newStatus === 'Descartado' ? 'Descartado' : 'Devolvido ao fornecedor';
+          const termStatus = newStatus === 'Descartado' ? 'DEVOLVIDO' : 'DEVOLVIDO AO FORNECEDOR';
           
-          // 1. Fechar OSs abertas para este item como 'Descartado'
+          // 1. Fechar OSs abertas para este item
           try {
             const osRef = collection(db, COLLECTIONS.OS_CONSERTO);
             const qOs = query(osRef, where('tag', '==', tagUpper));
@@ -167,9 +176,9 @@ const Equipamentos = () => {
               const osData = osDoc.data();
               if (osData.status === 'Enviado' || osData.status === 'Em Conserto') {
                 await updateDoc(doc(db, COLLECTIONS.OS_CONSERTO, osDoc.id), {
-                  status: 'Descartado',
+                  status: newStatus === 'Descartado' ? 'Descartado' : 'Retornado',
                   dataRetorno: Timestamp.now(),
-                  observacao: `${osData.observacao ? osData.observacao + ' | ' : ''}Descartado manualmente na aba de ferramentas`
+                  observacao: `${osData.observacao ? osData.observacao + ' | ' : ''}${reasonStr} manualmente na aba de ferramentas`
                 });
               }
             }
@@ -186,10 +195,10 @@ const Equipamentos = () => {
               const termData = termoDoc.data();
               if (termData.status === 'ATIVO' || termData.status === 'EM CONCERTO') {
                 await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
-                  status: 'DEVOLVIDO',
+                  status: termStatus,
                   dataDevolucao: Timestamp.now(),
                   osVinculada: null,
-                  observacao: `${termData.observacao ? termData.observacao + ' | ' : ''}Descartado manualmente na aba de ferramentas`
+                  observacao: `${termData.observacao ? termData.observacao + ' | ' : ''}${reasonStr} manualmente na aba de ferramentas`
                 });
 
                 // Se o termo estava ATIVO, ajusta contadores do colaborador
@@ -249,6 +258,9 @@ const Equipamentos = () => {
       }
       if (key === 'status') {
         return getDisplayStatus(eq);
+      }
+      if (key === 'tipoPosse') {
+        return eq.tipoPosse || 'Própria';
       }
       return eq[key] || '-';
     });
@@ -323,6 +335,8 @@ const Equipamentos = () => {
         itemVal = String(eq.tag || eq.cod || eq.id || '-');
       } else if (colKey === 'status') {
         itemVal = getDisplayStatus(eq);
+      } else if (colKey === 'tipoPosse') {
+        itemVal = String(eq.tipoPosse || 'Própria');
       } else {
         itemVal = String(eq[colKey] || '-');
       }
@@ -342,6 +356,9 @@ const Equipamentos = () => {
     } else if (sortConfig.key === 'tag') {
       valA = String(a.tag || a.cod || a.id || '').toUpperCase();
       valB = String(b.tag || b.cod || b.id || '').toUpperCase();
+    } else if (sortConfig.key === 'tipoPosse') {
+      valA = String(a.tipoPosse || 'Própria').toUpperCase();
+      valB = String(b.tipoPosse || 'Própria').toUpperCase();
     } else {
       valA = String(valA || '').toUpperCase();
       valB = String(valB || '').toUpperCase();
@@ -536,6 +553,20 @@ const Equipamentos = () => {
                     />
                   </th>
                   <th>
+                    Posse
+                    <ColumnFilterPopover
+                      title="Posse"
+                      columnKey="tipoPosse"
+                      uniqueValues={getUniqueValues('tipoPosse')}
+                      selectedValues={activeFilters.tipoPosse.selected}
+                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, tipoPosse: { ...prev.tipoPosse, selected: vals } }))}
+                      conditionFilter={activeFilters.tipoPosse.condition}
+                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, tipoPosse: { ...prev.tipoPosse, condition: cond } }))}
+                      onSortChange={(dir) => setSortConfig({ key: 'tipoPosse', direction: dir })}
+                      currentSort={sortConfig.key === 'tipoPosse' ? sortConfig.direction : null}
+                    />
+                  </th>
+                  <th>
                     Qtd. Total
                     <ColumnFilterPopover
                       title="Qtd Total"
@@ -574,13 +605,33 @@ const Equipamentos = () => {
                     <td style={{ fontWeight: 500 }}>{item.descricao}</td>
                     <td>{item.marcaModelo || <span style={{ color: 'var(--text-muted)' }}>-</span>}</td>
                     <td>{item.und}</td>
+                    <td>
+                      {item.tipoPosse === 'Locada' ? (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: 700, 
+                          color: '#a855f7',
+                          backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                          padding: '2px 8px',
+                          borderRadius: '4px'
+                        }}>
+                          Locada {item.locador ? `(${item.locador})` : ''}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Própria</span>
+                      )}
+                    </td>
                     <td>{item.quantidadeTotal}</td>
                     <td>
                       <span style={{ 
                         fontSize: '0.75rem', 
                         fontWeight: 700, 
-                        color: (item.status === 'Disponível' || item.status === 'ATIVO' || item.status === 'ATIVA') 
+                        color: (getDisplayStatus(item) === 'Disponível') 
                           ? 'var(--color-success)' 
+                          : getDisplayStatus(item) === 'Cautelado'
+                          ? 'var(--color-primary-light)' 
+                          : getDisplayStatus(item) === 'Devolvido ao Fornecedor'
+                          ? '#a855f7'
                           : item.status === 'Descartado' 
                           ? 'var(--color-danger)' 
                           : 'var(--color-warning)' 
@@ -721,11 +772,38 @@ const Equipamentos = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
                     style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
                   >
-                    <option value="Disponível">ATIVO</option>
+                    <option value="Disponível">ATIVO (Disponível)</option>
                     <option value="Em Manutenção">Em Manutenção</option>
                     <option value="Inativo">Inativo</option>
                     <option value="Descartado">Descartado</option>
+                    <option value="Devolvido ao Fornecedor">Devolvido ao Fornecedor</option>
                   </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Posse</label>
+                  <select
+                    className="form-input"
+                    value={formData.tipoPosse || 'Própria'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, tipoPosse: e.target.value }))}
+                    style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="Própria">Própria</option>
+                    <option value="Locada">Locada</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Locador / Fornecedor</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ex: Rental Co."
+                    value={formData.locador || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, locador: e.target.value }))}
+                    disabled={formData.tipoPosse !== 'Locada'}
+                  />
                 </div>
               </div>
 

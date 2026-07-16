@@ -261,6 +261,11 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--color-warning);
 }
 
+.badge-supplier {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
 /* Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;

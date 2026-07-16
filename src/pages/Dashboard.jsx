@@ -72,7 +72,7 @@ const Dashboard = () => {
         const data = doc.data();
         total++;
         if (data.status === 'ATIVO') active++;
-        else if (data.status === 'DEVOLVIDO') returned++;
+        else if (data.status === 'DEVOLVIDO' || data.status === 'DEVOLVIDO AO FORNECEDOR') returned++;
         else if (data.status === 'EM CONCERTO') repair++;
 
         // Count for graphs (only for active items)
@@ -390,6 +390,7 @@ const Dashboard = () => {
                       <span className={`badge ${
                         mov.status === 'ATIVO' ? 'badge-active' : 
                         mov.status === 'DEVOLVIDO' ? 'badge-returned' : 
+                        mov.status === 'DEVOLVIDO AO FORNECEDOR' ? 'badge-supplier' : 
                         'badge-repair'
                       }`}>
                         {mov.status}

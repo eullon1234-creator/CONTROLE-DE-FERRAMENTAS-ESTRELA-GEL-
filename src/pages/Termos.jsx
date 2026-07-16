@@ -119,8 +119,18 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
     quantidade: 1,
     observacao: '',
     grupo: 'Ferramenta Manual',
-    assinaturaBase64: '' // saved drawing
+    assinaturaBase64: '', // saved drawing
+    tipoPosse: 'Própria',
+    locador: ''
   });
+
+  const isEquipmentLocado = (term) => {
+    if (term.tipoPosse === 'Locada') return true;
+    const tagUpper = (term.tag || term.codEquipamento || '').toUpperCase().trim();
+    if (!tagUpper) return false;
+    const matched = equipamentos.find(eq => (eq.tag || eq.cod || eq.id || '').toUpperCase().trim() === tagUpper);
+    return matched?.tipoPosse === 'Locada';
+  };
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -145,6 +155,8 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
       q = query(collRef, where('status', '==', 'EM CONCERTO'));
     } else if (statusFilter === 'DEVOLVIDO') {
       q = query(collRef, where('status', '==', 'DEVOLVIDO'), limit(limitCount + 1));
+    } else if (statusFilter === 'DEVOLVIDO AO FORNECEDOR') {
+      q = query(collRef, where('status', '==', 'DEVOLVIDO AO FORNECEDOR'), limit(limitCount + 1));
     } else {
       q = query(collRef, limit(limitCount + 1));
     }
@@ -323,7 +335,9 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
       marca: eq.marcaModelo ? eq.marcaModelo.split('/')[0].trim() : '',
       modelo: eq.marcaModelo && eq.marcaModelo.split('/')[1] ? eq.marcaModelo.split('/')[1].trim() : '',
       grupo: eq.grupo,
-      tag: eq.tag // Pre-fills tag of the term automatically!
+      tag: eq.tag, // Pre-fills tag of the term automatically!
+      tipoPosse: eq.tipoPosse || 'Própria',
+      locador: eq.locador || ''
     }));
     setEqSearch(eq.descricao);
     setFilteredEqs([]);
@@ -381,6 +395,8 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
         observacao: formData.observacao,
         grupo: classifyGroup(formData.descricaoMaterial),
         assinaturaBase64: formData.assinaturaBase64 || '', // digital signature
+        tipoPosse: formData.tipoPosse || 'Própria',
+        locador: formData.locador || '',
         criadoEm: Timestamp.now()
       };
 
@@ -413,6 +429,8 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
               und: 'Unidade',
               quantidadeTotal: 1,
               status: 'Disponível',
+              tipoPosse: formData.tipoPosse || 'Própria',
+              locador: formData.locador || '',
               setor: 'Almoxarifado',
               observacao: 'Cadastrado automaticamente ao gerar termo de empréstimo',
               criadoEm: Timestamp.now(),
@@ -462,7 +480,9 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
         quantidade: 1,
         observacao: '',
         grupo: 'Ferramenta Manual',
-        assinaturaBase64: ''
+        assinaturaBase64: '',
+        tipoPosse: 'Própria',
+        locador: ''
       });
       setCollabSearch('');
       setEqSearch('');
@@ -554,6 +574,14 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
           if (eqSnap && eqSnap.exists()) {
             transaction.update(eqRef, {
               status: 'Em Manutenção',
+              atualizadoEm: Timestamp.now()
+            });
+          }
+        } else if (newStatus === 'DEVOLVIDO AO FORNECEDOR') {
+          // Update equipment status if it exists
+          if (eqSnap && eqSnap.exists()) {
+            transaction.update(eqRef, {
+              status: 'Devolvido ao Fornecedor',
               atualizadoEm: Timestamp.now()
             });
           }
@@ -766,7 +794,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
 
         {/* Status Filter Buttons */}
         <div style={{ display: 'flex', gap: '8px', backgroundColor: 'rgba(0,0,0,0.02)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-          {['TODOS', 'ATIVO', 'DEVOLVIDO', 'EM CONCERTO'].map((status) => (
+          {['TODOS', 'ATIVO', 'DEVOLVIDO', 'EM CONCERTO', 'DEVOLVIDO AO FORNECEDOR'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -923,7 +951,21 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                       </td>
                       <td>
                         <div style={{ fontWeight: 500 }}>{term.descricaoMaterial}</div>
-                        {term.marca && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{term.marca} {term.modelo}</div>}
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '3px', flexWrap: 'wrap' }}>
+                          {term.marca && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{term.marca} {term.modelo}</span>}
+                          {isEquipmentLocado(term) && (
+                            <span style={{ 
+                              fontSize: '0.68rem', 
+                              backgroundColor: 'rgba(168, 85, 247, 0.15)', 
+                              color: '#a855f7', 
+                              padding: '1px 6px', 
+                              borderRadius: '4px',
+                              fontWeight: 700
+                            }}>
+                              Locada {term.locador ? `(${term.locador})` : ''}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         {term.codEquipamento && (
@@ -982,6 +1024,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                         <span className={`badge ${
                           term.status === 'ATIVO' ? 'badge-active' : 
                           term.status === 'DEVOLVIDO' ? 'badge-returned' : 
+                          term.status === 'DEVOLVIDO AO FORNECEDOR' ? 'badge-supplier' : 
                           'badge-repair'
                         }`}>
                           {term.status}
@@ -1013,6 +1056,16 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                               >
                                 Conserto
                               </button>
+                              {isEquipmentLocado(term) && (
+                                <button
+                                  onClick={() => handleReturnItem(term, 'DEVOLVIDO AO FORNECEDOR')}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '6px 12px', fontSize: '0.75rem', color: '#a855f7', borderColor: 'rgba(168, 85, 247, 0.3)' }}
+                                  title="Devolver ao Fornecedor (Locação)"
+                                >
+                                  Dev. Fornecedor
+                                </button>
+                              )}
                             </>
                           )}
                           <button
@@ -1248,6 +1301,32 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                   onChange={(e) => setFormData(prev => ({ ...prev, quantidade: Number(e.target.value) || 1 }))}
                   required
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Posse</label>
+                  <select
+                    className="form-input"
+                    value={formData.tipoPosse}
+                    onChange={(e) => setFormData(prev => ({ ...prev, tipoPosse: e.target.value }))}
+                    style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="Própria">Própria</option>
+                    <option value="Locada">Locada</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Locador / Fornecedor</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ex: Rental Co."
+                    value={formData.locador}
+                    onChange={(e) => setFormData(prev => ({ ...prev, locador: e.target.value }))}
+                    disabled={formData.tipoPosse !== 'Locada'}
+                  />
+                </div>
               </div>
 
               {/* Signature pad directly in creation form */}
