@@ -270,11 +270,11 @@ const Dashboard = () => {
       {/* Charts Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px', marginBottom: '30px' }}>
         {/* Top Collaborators Bar Chart */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
+        <div className="glass-panel" style={{ padding: '24px', minWidth: 0 }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <TrendingUp size={18} /> Top 5 Colaboradores (Ferramentas Ativas)
           </h3>
-          <div style={{ width: '100%', height: '300px' }}>
+          <div style={{ width: '100%', height: '300px', minWidth: 0 }}>
             {chartDataCollaborators.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartDataCollaborators} layout="vertical" margin={{ left: 50, right: 20 }}>
@@ -297,18 +297,18 @@ const Dashboard = () => {
               </ResponsiveContainer>
             ) : (
               <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                Nenhuma ferramenta ativa no momento.
+                Nenhuma ferramenta activa no momento.
               </div>
             )}
           </div>
         </div>
 
         {/* Group Distribution Pie Chart */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
+        <div className="glass-panel" style={{ padding: '24px', minWidth: 0 }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-primary)' }}>
             Distribuição por Categoria
           </h3>
-          <div style={{ width: '100%', height: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ width: '100%', height: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minWidth: 0 }}>
             {chartDataGroup.length > 0 ? (
               <>
                 <div style={{ width: '100%', height: '220px' }}>
