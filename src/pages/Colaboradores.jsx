@@ -25,7 +25,8 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
     cpf: { selected: [], condition: { type: '', value: '' } },
     funcao: { selected: [], condition: { type: '', value: '' } },
     empresa: { selected: [], condition: { type: '', value: '' } },
-    qtdItens: { selected: [], condition: { type: '', value: '' } }
+    totalItensAtivos: { selected: [], condition: { type: '', value: '' } },
+    totalItensDevolvidos: { selected: [], condition: { type: '', value: '' } }
   });
   const [sortConfig, setSortConfig] = useState({ key: 'nome', direction: 'asc' });
 
@@ -363,10 +364,10 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
                       title="Nome"
                       columnKey="nome"
                       uniqueValues={getUniqueValues('nome')}
-                      selectedValues={activeFilters.nome.selected}
-                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, nome: { ...prev.nome, selected: vals } }))}
-                      conditionFilter={activeFilters.nome.condition}
-                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, nome: { ...prev.nome, condition: cond } }))}
+                      selectedValues={activeFilters.nome?.selected || []}
+                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, nome: { ...(prev.nome || {}), selected: vals } }))}
+                      conditionFilter={activeFilters.nome?.condition || { type: '', value: '' }}
+                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, nome: { ...(prev.nome || {}), condition: cond } }))}
                       onSortChange={(dir) => setSortConfig({ key: 'nome', direction: dir })}
                       currentSort={sortConfig.key === 'nome' ? sortConfig.direction : null}
                       align="left"
@@ -378,10 +379,10 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
                       title="Função"
                       columnKey="funcao"
                       uniqueValues={getUniqueValues('funcao')}
-                      selectedValues={activeFilters.funcao.selected}
-                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, funcao: { ...prev.funcao, selected: vals } }))}
-                      conditionFilter={activeFilters.funcao.condition}
-                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, funcao: { ...prev.funcao, condition: cond } }))}
+                      selectedValues={activeFilters.funcao?.selected || []}
+                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, funcao: { ...(prev.funcao || {}), selected: vals } }))}
+                      conditionFilter={activeFilters.funcao?.condition || { type: '', value: '' }}
+                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, funcao: { ...(prev.funcao || {}), condition: cond } }))}
                       onSortChange={(dir) => setSortConfig({ key: 'funcao', direction: dir })}
                       currentSort={sortConfig.key === 'funcao' ? sortConfig.direction : null}
                       align="left"
@@ -393,10 +394,10 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
                       title="Itens Ativos"
                       columnKey="totalItensAtivos"
                       uniqueValues={getUniqueValues('totalItensAtivos')}
-                      selectedValues={activeFilters.totalItensAtivos.selected}
-                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, totalItensAtivos: { ...prev.totalItensAtivos, selected: vals } }))}
-                      conditionFilter={activeFilters.totalItensAtivos.condition}
-                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, totalItensAtivos: { ...prev.totalItensAtivos, condition: cond } }))}
+                      selectedValues={activeFilters.totalItensAtivos?.selected || []}
+                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, totalItensAtivos: { ...(prev.totalItensAtivos || {}), selected: vals } }))}
+                      conditionFilter={activeFilters.totalItensAtivos?.condition || { type: '', value: '' }}
+                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, totalItensAtivos: { ...(prev.totalItensAtivos || {}), condition: cond } }))}
                       onSortChange={(dir) => setSortConfig({ key: 'totalItensAtivos', direction: dir })}
                       currentSort={sortConfig.key === 'totalItensAtivos' ? sortConfig.direction : null}
                       isNumeric={true}
@@ -408,10 +409,10 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
                       title="Itens Devolvidos"
                       columnKey="totalItensDevolvidos"
                       uniqueValues={getUniqueValues('totalItensDevolvidos')}
-                      selectedValues={activeFilters.totalItensDevolvidos.selected}
-                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, totalItensDevolvidos: { ...prev.totalItensDevolvidos, selected: vals } }))}
-                      conditionFilter={activeFilters.totalItensDevolvidos.condition}
-                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, totalItensDevolvidos: { ...prev.totalItensDevolvidos, condition: cond } }))}
+                      selectedValues={activeFilters.totalItensDevolvidos?.selected || []}
+                      onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, totalItensDevolvidos: { ...(prev.totalItensDevolvidos || {}), selected: vals } }))}
+                      conditionFilter={activeFilters.totalItensDevolvidos?.condition || { type: '', value: '' }}
+                      onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, totalItensDevolvidos: { ...(prev.totalItensDevolvidos || {}), condition: cond } }))}
                       onSortChange={(dir) => setSortConfig({ key: 'totalItensDevolvidos', direction: dir })}
                       currentSort={sortConfig.key === 'totalItensDevolvidos' ? sortConfig.direction : null}
                       isNumeric={true}
