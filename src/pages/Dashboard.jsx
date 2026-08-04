@@ -276,7 +276,7 @@ const Dashboard = () => {
           </h3>
           <div style={{ width: '100%', height: '300px', minWidth: 0 }}>
             {chartDataCollaborators.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={chartDataCollaborators} layout="vertical" margin={{ left: 50, right: 20 }}>
                   <XAxis type="number" stroke="var(--text-muted)" fontSize={12} />
                   <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={11} width={120} />
@@ -312,7 +312,7 @@ const Dashboard = () => {
             {chartDataGroup.length > 0 ? (
               <>
                 <div style={{ width: '100%', height: '220px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <PieChart>
                       <Pie
                         data={chartDataGroup}
