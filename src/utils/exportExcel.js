@@ -845,7 +845,7 @@ export async function exportOSDetailExcel(osList, colaboradores) {
       row.getCell(12).alignment = { vertical: 'middle', horizontal: 'left' };
     });
 
-    // Add Summary Row at Bottom
+    // Add Summary Row at Bottom of Sheet 1
     const totalRow = sheet.addRow([
       'TOTAL',
       '',
@@ -868,6 +868,116 @@ export async function exportOSDetailExcel(osList, colaboradores) {
 
     autoWidth(sheet, [12, 18, 32, 26, 20, 16, 16, 16, 15, 18, 22, 35]);
 
+    // ─── ABA 2: Histórico e Frequência por Ferramenta ─────────────────────────
+    const sheet2 = wb.addWorksheet('📊 Histórico por Ferramenta');
+    setupSheetView(sheet2);
+
+    const headers2 = [
+      'Nº',
+      'TAG / Código',
+      'Descrição da Ferramenta',
+      'Qtd. Idas ao Conserto',
+      'Nº das OSs',
+      'Datas dos Envios / OSs',
+      'Custo Acumulado (R$)'
+    ];
+
+    const header2Row = sheet2.addRow(headers2);
+    styleHeader(header2Row);
+
+    // Agrupar OSs por TAG (ou descrição caso sem TAG)
+    const toolGroupMap = new Map();
+
+    osList.forEach(os => {
+      const tagClean = (os.tag && os.tag.trim()) ? os.tag.trim().toUpperCase() : null;
+      const key = tagClean || (os.descricao || 'SEM TAG').trim().toUpperCase();
+
+      if (!toolGroupMap.has(key)) {
+        toolGroupMap.set(key, {
+          tag: tagClean || '-',
+          descricao: os.descricao || '-',
+          osList: []
+        });
+      }
+      toolGroupMap.get(key).osList.push(os);
+    });
+
+    // Ordenar grupos pela quantidade de idas ao conserto (decrescente)
+    const sortedToolGroups = Array.from(toolGroupMap.values()).sort((a, b) => b.osList.length - a.osList.length);
+
+    let totalGlobalIdas = 0;
+    let totalGlobalCusto = 0;
+
+    sortedToolGroups.forEach((group, i) => {
+      const qteConsertos = group.osList.length;
+      totalGlobalIdas += qteConsertos;
+
+      // Ordenar OSs do grupo por data
+      const sortedOsInGroup = [...group.osList].sort((a, b) => {
+        const dA = a.dateEnvioObj || new Date(a.dataEnvio || 0);
+        const dB = b.dateEnvioObj || new Date(b.dataEnvio || 0);
+        return dA - dB;
+      });
+
+      const numerosOS = sortedOsInGroup.map(o => o.nOS || '-').join(', ');
+      
+      const datasStr = sortedOsInGroup.map(o => {
+        const dt = parseDateValue(o.dateEnvioObj || o.dataEnvio);
+        if (dt instanceof Date) {
+          return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+        }
+        return '-';
+      }).join(', ');
+
+      const custoGrupo = sortedOsInGroup.reduce((sum, o) => sum + (parseFloat(o.valorOrcamento) || 0), 0);
+      totalGlobalCusto += custoGrupo;
+
+      const row = sheet2.addRow([
+        i + 1,
+        group.tag,
+        group.descricao,
+        qteConsertos,
+        numerosOS,
+        datasStr,
+        custoGrupo
+      ]);
+
+      styleDataRow(row, i);
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(3).alignment = { vertical: 'middle', horizontal: 'left' };
+      
+      // Destaque se a ferramenta foi ao conserto 2 ou mais vezes
+      row.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: qteConsertos > 1 ? 'FFDC2626' : 'FF1E293B' } };
+      
+      row.getCell(5).alignment = { vertical: 'middle', horizontal: 'left' };
+      row.getCell(6).alignment = { vertical: 'middle', horizontal: 'left' };
+      
+      row.getCell(7).numFmt = '"R$"#,##0.00;("R$"#,##0.00);"-"';
+      row.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+    });
+
+    // Linha de Total na Aba 2
+    const total2Row = sheet2.addRow([
+      'TOTAL',
+      '',
+      `Total de ${sortedToolGroups.length} ferramenta(s) distinta(s)`,
+      totalGlobalIdas,
+      '',
+      '',
+      totalGlobalCusto
+    ]);
+
+    total2Row.font = { bold: true, color: { argb: 'FF1E293B' }, size: 10, name: 'Calibri' };
+    total2Row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    total2Row.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+    total2Row.getCell(7).numFmt = '"R$"#,##0.00;("R$"#,##0.00);"-"';
+    total2Row.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+
+    autoWidth(sheet2, [8, 18, 34, 22, 22, 38, 22]);
+
+    // ─── GERAR E BAIXAR ARQUIVO EXCEL ──────────────────────────────────────────
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
     const filename = `Relatorio_Detalhado_OS_${dateStr}.xlsx`;
