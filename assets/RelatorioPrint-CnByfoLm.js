@@ -1,0 +1,38 @@
+import{t as e}from"./arrow-left-C-F29gaQ.js";import{t}from"./printer-C1mwkwHc.js";import{E as n,k as r,t as i}from"./index-Dt05Lwwn.js";var a=r(n(),1),o=i(),s=({type:n,items:r,onBack:i})=>{(0,a.useEffect)(()=>{window.scrollTo(0,0)},[]);let s=()=>{window.print()},c=n===`ativas`;return(0,o.jsxs)(`div`,{style:{padding:`20px`,minHeight:`100vh`,backgroundColor:`#ffffff`,color:`#000000`},children:[(0,o.jsx)(`style`,{children:`
+        @media print {
+          @page {
+            size: landscape;
+            margin: 10mm;
+          }
+          .no-print {
+            display: none !important;
+          }
+          body {
+            background-color: #ffffff;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+          }
+          .print-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse;
+          }
+          th, td {
+            border: 1px solid #000000 !important;
+            padding: 6px 8px !important;
+            font-size: 9pt !important;
+          }
+          th {
+            background-color: #f2f2f2 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      `}),(0,o.jsxs)(`div`,{className:`no-print`,style:{display:`flex`,justifyContent:`space-between`,alignItems:`center`,marginBottom:`30px`,padding:`16px`,borderBottom:`1px solid var(--border-card)`},children:[(0,o.jsxs)(`button`,{onClick:i,className:`btn btn-secondary`,style:{display:`flex`,alignItems:`center`,gap:`8px`},children:[(0,o.jsx)(e,{size:16}),` Voltar`]}),(0,o.jsxs)(`button`,{onClick:s,className:`btn btn-primary`,style:{display:`flex`,alignItems:`center`,gap:`8px`},children:[(0,o.jsx)(t,{size:16}),` Imprimir Relatório (PDF / Paisagem)`]})]}),(0,o.jsxs)(`div`,{className:`print-container`,style:{width:`100%`,margin:`0 auto`,padding:`10px`,fontFamily:`system-ui, -apple-system, sans-serif`,lineHeight:1.4},children:[(0,o.jsxs)(`div`,{style:{border:`2px solid #000000`,padding:`12px 15px`,display:`grid`,gridTemplateColumns:`1.5fr 4fr`,gap:`20px`,alignItems:`center`,marginBottom:`20px`},children:[(0,o.jsxs)(`div`,{style:{textAlign:`center`,borderRight:`2px solid #000000`,paddingRight:`15px`},children:[(0,o.jsx)(`h1`,{style:{fontFamily:`var(--font-heading)`,fontSize:`24px`,fontWeight:800,margin:0,color:`#0f172a`},children:`GEL`}),(0,o.jsx)(`span`,{style:{fontSize:`9px`,textTransform:`uppercase`,letterSpacing:`1.5px`,fontWeight:`bold`},children:`Engenharia`})]}),(0,o.jsxs)(`div`,{children:[(0,o.jsx)(`h2`,{style:{fontSize:`15px`,fontWeight:`bold`,margin:`0 0 5px 0`,textTransform:`uppercase`,textAlign:`center`},children:c?`Relatório de Ferramentas Ativas (Empréstimos)`:`Relatório de Ferramentas Danificadas (Em Manutenção)`}),(0,o.jsxs)(`div`,{style:{fontSize:`9.5px`,display:`grid`,gridTemplateColumns:`1.3fr 1fr 1.3fr`,gap:`8px`},children:[(0,o.jsxs)(`div`,{children:[(0,o.jsx)(`strong`,{children:`Obra:`}),` UHE / Estrela`]}),(0,o.jsxs)(`div`,{children:[(0,o.jsx)(`strong`,{children:`CC:`}),` 60218`]}),(0,o.jsxs)(`div`,{style:{textAlign:`right`},children:[(0,o.jsx)(`strong`,{children:`Data Emissão:`}),` `,new Date().toLocaleDateString(`pt-BR`),` às `,new Date().toLocaleTimeString(`pt-BR`,{hour:`2-digit`,minute:`2-digit`})]})]})]})]}),(0,o.jsxs)(`div`,{style:{fontSize:`10px`,color:`#374151`,marginBottom:`12px`,display:`flex`,justifyContent:`space-between`},children:[(0,o.jsx)(`span`,{children:`* Este relatório apresenta a relação atual de ferramentas registradas no sistema de controle.`}),(0,o.jsxs)(`span`,{children:[`Total de itens listados: `,(0,o.jsx)(`strong`,{children:r.length})]})]}),(0,o.jsxs)(`table`,{style:{width:`100%`,borderCollapse:`collapse`,marginBottom:`20px`,fontSize:`9.5pt`},children:[(0,o.jsx)(`thead`,{children:(0,o.jsxs)(`tr`,{style:{backgroundColor:`#f3f4f6`},children:[(0,o.jsx)(`th`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`,width:`40px`},children:`Nº`}),(0,o.jsx)(`th`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`,width:`130px`},children:`TAG / Código`}),(0,o.jsx)(`th`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`left`,width:`220px`},children:`Descrição da Ferramenta`}),(0,o.jsx)(`th`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`left`,width:`200px`},children:`Colaborador Responsável`}),(0,o.jsx)(`th`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`left`,width:`150px`},children:`Função / Cargo`}),(0,o.jsx)(`th`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`,width:`90px`},children:c?`Empréstimo`:`Data Envio`}),(0,o.jsx)(`th`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`,width:`130px`},children:`Visto / Assinatura`})]})}),(0,o.jsxs)(`tbody`,{children:[r.map((e,t)=>{let n;if(c){let t=e.dateObj||(e.dataEntrada?.toDate?e.dataEntrada.toDate():e.dataEntrada);n=t instanceof Date?t.toLocaleDateString(`pt-BR`):String(t||`-`)}else{let t=e.dateEnvioObj||(e.dataEnvio?.toDate?e.dataEnvio.toDate():e.dataEnvio);n=t instanceof Date?t.toLocaleDateString(`pt-BR`):String(t||`-`)}return(0,o.jsxs)(`tr`,{children:[(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`},children:t+1}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`,fontFamily:`monospace`,fontWeight:`bold`},children:c?e.tag||e.codEquipamento||`-`:e.tag||`-`}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`},children:(0,o.jsx)(`strong`,{children:c?e.descricaoMaterial:e.descricao})}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`},children:e.colaboradorNome||`-`}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`},children:e.colaboradorFuncao||`-`}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`},children:n}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`,backgroundColor:`#fafafa`}})]},e.id||t)}),Array.from({length:10}).map((e,t)=>(0,o.jsxs)(`tr`,{style:{height:`28px`},children:[(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`,textAlign:`center`,color:`#9ca3af`},children:r.length+t+1}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`}}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`}}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`}}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`}}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`}}),(0,o.jsx)(`td`,{style:{border:`1px solid #000000`,padding:`6px 8px`}})]},`empty-${t}`))]})]}),(0,o.jsxs)(`div`,{style:{marginTop:`20px`,display:`flex`,justifyContent:`space-between`,fontSize:`9px`,color:`#6b7280`},children:[(0,o.jsx)(`span`,{children:`* As linhas vazias acima servem para anotação e controle manual temporário no campo.`}),(0,o.jsx)(`span`,{children:`Visto do Responsável pelo Almoxarifado: ____________________________________`})]})]})]})};export{s as default};
