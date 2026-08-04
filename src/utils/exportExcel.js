@@ -756,3 +756,137 @@ export async function exportDamagedToolsExcel(osDanificadas, colaboradores) {
     alert('Ocorreu um erro ao gerar a planilha de ferramentas danificadas. Verifique sua conexão com a internet.');
   }
 }
+
+/**
+ * Exporta a planilha detalhada completa de Ordens de Serviço (OS).
+ * @param {Array} osList Lista de todas as OSs
+ * @param {Array} colaboradores Lista de colaboradores para enriquecer cargos
+ */
+export async function exportOSDetailExcel(osList, colaboradores) {
+  try {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Controle de Ferramentaria — UHE Estrela';
+    wb.lastModifiedBy = 'Controle de Ferramentaria';
+    wb.created = new Date();
+    wb.modified = new Date();
+
+    const sheet = wb.addWorksheet('📋 Relatório Detalhado OS');
+    setupSheetView(sheet);
+
+    const headers = [
+      'Nº OS',
+      'TAG / Código',
+      'Descrição da Ferramenta',
+      'Colaborador Responsável',
+      'Função / Cargo',
+      'Data da OS',
+      'Data Envio',
+      'Data Retorno',
+      'Dias Conserto',
+      'Status',
+      'Valor Orçamento (R$)',
+      'Observações'
+    ];
+
+    const headerRow = sheet.addRow(headers);
+    styleHeader(headerRow);
+
+    let totalBudget = 0;
+
+    osList.forEach((os, i) => {
+      const collab = (colaboradores || []).find(c => c.id === os.colaboradorId || c.nome.toUpperCase() === os.colaboradorNome?.toUpperCase());
+      const role = collab ? collab.funcao : '-';
+
+      const valorNum = os.valorOrcamento ? parseFloat(os.valorOrcamento) : 0;
+      if (!isNaN(valorNum)) {
+        totalBudget += valorNum;
+      }
+
+      let dias = os.diasEmConserto != null ? os.diasEmConserto : '-';
+      if (dias === '-' && os.dateEnvioObj) {
+        const endDate = os.dateRetornoObj || new Date();
+        const diffMs = endDate - os.dateEnvioObj;
+        dias = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      }
+
+      const row = sheet.addRow([
+        os.nOS || '-',
+        os.tag || '-',
+        os.descricao || '-',
+        os.colaboradorNome || '-',
+        role,
+        parseDateValue(os.dateOSObj || os.dataOS),
+        parseDateValue(os.dateEnvioObj || os.dataEnvio),
+        parseDateValue(os.dateRetornoObj || os.dataRetorno),
+        typeof dias === 'number' ? dias : '-',
+        os.status || 'Enviado',
+        valorNum > 0 ? valorNum : 0,
+        os.observacao || '-'
+      ]);
+
+      styleDataRow(row, i);
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(6).numFmt = 'dd/mm/yyyy';
+      row.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(7).numFmt = 'dd/mm/yyyy';
+      row.getCell(7).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(8).numFmt = 'dd/mm/yyyy';
+      row.getCell(8).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(9).alignment = { vertical: 'middle', horizontal: 'center' };
+
+      const statusText = makeStatusText(os.status || 'Enviado');
+      applyStatusStyle(row.getCell(10), statusText);
+
+      // Format currency
+      row.getCell(11).numFmt = '"R$"#,##0.00;("R$"#,##0.00);"-"';
+      row.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
+      row.getCell(12).alignment = { vertical: 'middle', horizontal: 'left' };
+    });
+
+    // Add Summary Row at Bottom
+    const totalRow = sheet.addRow([
+      'TOTAL',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      totalBudget,
+      `Total de ${osList.length} Ordem(ns) de Serviço registrada(s)`
+    ]);
+
+    totalRow.font = { bold: true, color: { argb: 'FF1E293B' }, size: 10, name: 'Calibri' };
+    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    totalRow.getCell(11).numFmt = '"R$"#,##0.00;("R$"#,##0.00);"-"';
+    totalRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
+
+    autoWidth(sheet, [12, 18, 32, 26, 20, 16, 16, 16, 15, 18, 22, 35]);
+
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    const filename = `Relatorio_Detalhado_OS_${dateStr}.xlsx`;
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error('Erro ao exportar planilha detalhada de OS:', error);
+    alert('Ocorreu um erro ao gerar a planilha detalhada de OS. Verifique sua conexão com a internet.');
+  }
+}

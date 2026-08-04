@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
 import { Printer, Download } from 'lucide-react';
-import { exportDamagedToolsExcel } from '../utils/exportExcel';
+import { exportDamagedToolsExcel, exportOSDetailExcel } from '../utils/exportExcel';
 
 const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
   const [osList, setOsList] = useState([]);
@@ -76,6 +76,14 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     exportDamagedToolsExcel(sortedDamaged, colaboradores);
   };
 
+  const handleExportDetailedOS = () => {
+    if (osList.length === 0) {
+      alert('Nenhuma Ordem de Serviço cadastrada para exportar.');
+      return;
+    }
+    exportOSDetailExcel(osList, colaboradores);
+  };
+
   const [activeFilters, setActiveFilters] = useState({
     nOS: { selected: [], condition: { type: '', value: '' } },
     tag: { selected: [], condition: { type: '', value: '' } },
@@ -83,7 +91,8 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     status: { selected: [], condition: { type: '', value: '' } },
     diasEmConserto: { selected: [], condition: { type: '', value: '' } },
     dateEnvioStr: { selected: [], condition: { type: '', value: '' } },
-    dateRetornoStr: { selected: [], condition: { type: '', value: '' } }
+    dateRetornoStr: { selected: [], condition: { type: '', value: '' } },
+    valorOrcamento: { selected: [], condition: { type: '', value: '' } }
   });
   const [sortConfig, setSortConfig] = useState({ key: 'nOS', direction: 'desc' });
 
@@ -100,6 +109,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     dataOS: '',
     dataEnvio: '',
     dataRetorno: '',
+    valorOrcamento: '',
     observacao: '',
     colaboradorId: '',
     colaboradorNome: ''
@@ -116,6 +126,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     dataOS: new Date().toISOString().substring(0, 10),
     dataEnvio: new Date().toISOString().substring(0, 10),
     status: 'Enviado',
+    valorOrcamento: '',
     observacao: '',
     colaboradorId: '',
     colaboradorNome: ''
@@ -123,6 +134,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
 
   const [returnFormData, setReturnFormData] = useState({
     dataRetorno: new Date().toISOString().substring(0, 10),
+    valorOrcamento: '',
     observacao: '',
     acaoRetorno: 'RETORNADO' // 'RETORNADO' or 'DESCARTADO'
   });
@@ -324,6 +336,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
         status: addFormData.status,
         dataRetorno: null,
         diasEmConserto: 0,
+        valorOrcamento: addFormData.valorOrcamento ? parseFloat(addFormData.valorOrcamento) : 0,
         observacao: addFormData.observacao.trim(),
         colaboradorId: linkedCollabId,
         colaboradorNome: linkedCollabNome,
@@ -384,6 +397,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
         dataOS: new Date().toISOString().substring(0, 10),
         dataEnvio: new Date().toISOString().substring(0, 10),
         status: 'Enviado',
+        valorOrcamento: '',
         observacao: '',
         colaboradorId: '',
         colaboradorNome: ''
@@ -409,15 +423,21 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
       const isDiscarded = returnFormData.acaoRetorno === 'DESCARTADO';
       const osRef = doc(db, COLLECTIONS.OS_CONSERTO, selectedOs.id);
       
-      // 1. Update OS document
-      await updateDoc(osRef, {
+      const updateData = {
         status: isDiscarded ? 'Descartado' : 'Retornado',
         dataRetorno: Timestamp.fromDate(dateRetornoVal),
         diasEmConserto: diffDays,
         observacao: returnFormData.observacao.trim() 
           ? `${selectedOs.observacao ? selectedOs.observacao + ' | ' : ''}${isDiscarded ? 'Descarte: ' : 'Retorno: '}${returnFormData.observacao.trim()}` 
           : (selectedOs.observacao || '')
-      });
+      };
+
+      if (returnFormData.valorOrcamento !== '') {
+        updateData.valorOrcamento = parseFloat(returnFormData.valorOrcamento) || 0;
+      }
+      
+      // 1. Update OS document
+      await updateDoc(osRef, updateData);
 
       // 2. Marca equipamento
       if (selectedOs.tag) {
@@ -443,9 +463,6 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
             const termData = termoDoc.data();
             
             if (isDiscarded) {
-              // Se foi descartada, marcamos o termo como DEVOLVIDO (ou encerrado) e adicionamos na observação.
-              // Como já estava "EM CONCERTO", o totalItensAtivos do colaborador já havia sido reduzido,
-              // então não reativamos e nem mexemos nos contadores.
               await updateDoc(doc(db, COLLECTIONS.TERMOS, termoDoc.id), {
                 status: 'DEVOLVIDO',
                 dataDevolucao: Timestamp.fromDate(dateRetornoVal),
@@ -496,6 +513,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
       setSelectedOs(null);
       setReturnFormData({
         dataRetorno: new Date().toISOString().substring(0, 10),
+        valorOrcamento: '',
         observacao: '',
         acaoRetorno: 'RETORNADO'
       });
@@ -514,6 +532,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
       dataOS: osItem.dateOSObj ? osItem.dateOSObj.toISOString().substring(0, 10) : '',
       dataEnvio: osItem.dateEnvioObj ? osItem.dateEnvioObj.toISOString().substring(0, 10) : '',
       dataRetorno: osItem.dateRetornoObj ? osItem.dateRetornoObj.toISOString().substring(0, 10) : '',
+      valorOrcamento: osItem.valorOrcamento != null ? String(osItem.valorOrcamento) : '',
       observacao: osItem.observacao || '',
       colaboradorId: osItem.colaboradorId || '',
       colaboradorNome: osItem.colaboradorNome || ''
@@ -554,6 +573,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
         dataEnvio: Timestamp.fromDate(dateEnvioVal),
         dataRetorno: dateRetornoVal ? Timestamp.fromDate(dateRetornoVal) : null,
         diasEmConserto: diffDays,
+        valorOrcamento: editFormData.valorOrcamento ? parseFloat(editFormData.valorOrcamento) : 0,
         observacao: editFormData.observacao.trim(),
         colaboradorId: editFormData.colaboradorId || '',
         colaboradorNome: editFormData.colaboradorNome || ''
@@ -923,6 +943,15 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
             <Download size={18} /> Planilha Danificadas
           </button>
 
+          <button 
+            onClick={handleExportDetailedOS} 
+            className="btn btn-secondary" 
+            style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Exportar planilha Excel completa com todos os detalhes e orçamentos das Ordens de Serviço"
+          >
+            <Download size={18} /> Planilha Detalhada OS
+          </button>
+
           <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
             <Plus size={18} /> Novo Conserto / OS
           </button>
@@ -937,33 +966,30 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
           <input
             type="text"
             className="form-input"
-            placeholder="Buscar por Nº OS, descrição ou TAG..."
+            placeholder="Buscar por Nº OS, TAG, Descrição ou Colaborador..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ paddingLeft: '44px', borderRadius: '8px' }}
+            style={{ paddingLeft: '44px' }}
           />
         </div>
 
-        {/* Tab Buttons */}
-        <div style={{ display: 'flex', gap: '8px', backgroundColor: 'rgba(0,0,0,0.02)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-          {['TODOS', 'EM_CONSERTO', 'RETORNADO', 'CANCELADO', 'DESCARTADO'].map((tab) => (
+        {/* Filter Tabs */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'TODOS', label: 'Todas' },
+            { id: 'EM_CONSERTO', label: 'Em Conserto / Pendentes' },
+            { id: 'RETORNADO', label: 'Retornadas' },
+            { id: 'DESCARTADO', label: 'Descartadas' },
+            { id: 'CANCELADO', label: 'Canceladas' }
+          ].map(tab => (
             <button
-              key={tab}
-              onClick={() => setFilterStatusTab(tab)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: 'none',
-                fontFamily: 'var(--font-heading)',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'var(--transition-all)',
-                backgroundColor: filterStatusTab === tab ? 'var(--color-primary)' : 'transparent',
-                color: filterStatusTab === tab ? '#ffffff' : 'var(--text-secondary)'
-              }}
+              key={tab.id}
+              type="button"
+              onClick={() => setFilterStatusTab(tab.id)}
+              className={`btn ${filterStatusTab === tab.id ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.82rem', padding: '8px 14px' }}
             >
-              {tab === 'EM_CONSERTO' ? 'EM CONSERTO' : tab}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -992,8 +1018,13 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                   </span>
                 )}
               </div>
-              <div style={{ fontWeight: 700 }}>
-                Total Pendente em Conserto: <span style={{ color: 'var(--color-warning)' }}>{activeOSCount} un.</span>
+              <div style={{ display: 'flex', gap: '16px', fontWeight: 700 }}>
+                <div>
+                  Pendente: <span style={{ color: 'var(--color-warning)' }}>{activeOSCount} un.</span>
+                </div>
+                <div style={{ borderLeft: '1px solid var(--border-card)', paddingLeft: '16px' }}>
+                  Total Orçamentos: <span style={{ color: 'var(--color-success)' }}>R$ {sortedOsList.reduce((acc, o) => acc + (parseFloat(o.valorOrcamento) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
               </div>
             </div>
 
@@ -1100,6 +1131,21 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                         isNumeric={true}
                       />
                     </th>
+                    <th style={{ textAlign: 'right' }}>
+                      Valor Orçamento
+                      <ColumnFilterPopover
+                        title="Orçamento"
+                        columnKey="valorOrcamento"
+                        uniqueValues={getUniqueValues('valorOrcamento')}
+                        selectedValues={activeFilters.valorOrcamento?.selected || []}
+                        onSelectChange={(vals) => setActiveFilters(prev => ({ ...prev, valorOrcamento: { ...(prev.valorOrcamento || {}), selected: vals } }))}
+                        conditionFilter={activeFilters.valorOrcamento?.condition || { type: '', value: '' }}
+                        onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, valorOrcamento: { ...(prev.valorOrcamento || {}), condition: cond } }))}
+                        onSortChange={(dir) => setSortConfig({ key: 'valorOrcamento', direction: dir })}
+                        currentSort={sortConfig.key === 'valorOrcamento' ? sortConfig.direction : null}
+                        isNumeric={true}
+                      />
+                    </th>
                     <th style={{ textAlign: 'right', width: '120px' }}>Ações</th>
                   </tr>
                 </thead>
@@ -1157,6 +1203,9 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                           <span style={{ color: isPending && days > 30 ? 'var(--color-danger)' : 'inherit' }}>
                             {days}
                           </span>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, color: os.valorOrcamento ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {os.valorOrcamento ? `R$ ${parseFloat(os.valorOrcamento).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1334,7 +1383,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Data da OS</label>
                   <input
@@ -1353,6 +1402,18 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                     value={addFormData.dataEnvio}
                     onChange={(e) => setAddFormData(prev => ({ ...prev, dataEnvio: e.target.value }))}
                     required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Orçamento (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-input"
+                    placeholder="Ex: 150.00"
+                    value={addFormData.valorOrcamento}
+                    onChange={(e) => setAddFormData(prev => ({ ...prev, valorOrcamento: e.target.value }))}
                   />
                 </div>
               </div>
@@ -1410,15 +1471,30 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Data de Fechamento</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={returnFormData.dataRetorno}
-                  onChange={(e) => setReturnFormData(prev => ({ ...prev, dataRetorno: e.target.value }))}
-                  required
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Data de Fechamento</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={returnFormData.dataRetorno}
+                    onChange={(e) => setReturnFormData(prev => ({ ...prev, dataRetorno: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Valor Final (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-input"
+                    placeholder="Ex: 250.00"
+                    value={returnFormData.valorOrcamento}
+                    onChange={(e) => setReturnFormData(prev => ({ ...prev, valorOrcamento: e.target.value }))}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -1546,7 +1622,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Data da OS</label>
                   <input
@@ -1567,19 +1643,32 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                     required
                   />
                 </div>
-                {(editFormData.status === 'Retornado' || editFormData.status === 'Descartado') && (
-                  <div className="form-group">
-                    <label className="form-label">Data Fechamento</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={editFormData.dataRetorno}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, dataRetorno: e.target.value }))}
-                      required
-                    />
-                  </div>
-                )}
+                <div className="form-group">
+                  <label className="form-label">Orçamento (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-input"
+                    placeholder="Ex: 150.00"
+                    value={editFormData.valorOrcamento}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, valorOrcamento: e.target.value }))}
+                  />
+                </div>
               </div>
+
+              {(editFormData.status === 'Retornado' || editFormData.status === 'Descartado') && (
+                <div className="form-group">
+                  <label className="form-label">Data Fechamento</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editFormData.dataRetorno}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, dataRetorno: e.target.value }))}
+                    required
+                  />
+                </div>
+              )}
 
               <div className="form-group">
                 <label className="form-label">Observações / Laudo Técnico</label>
