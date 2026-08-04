@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
 
 const TermoPrint = ({ term, onBack }) => {

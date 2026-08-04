@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Eraser, Check, Undo } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { Eraser, Check } from 'lucide-react';
 
 const SignaturePad = ({ onSave, onClear }) => {
   const canvasRef = useRef(null);

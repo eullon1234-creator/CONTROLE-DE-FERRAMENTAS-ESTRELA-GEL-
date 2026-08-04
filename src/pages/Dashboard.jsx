@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { db, COLLECTIONS } from '../firebase/config';
-import { collection, onSnapshot, query, limit, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { 
   FileText, 
   CheckCircle, 

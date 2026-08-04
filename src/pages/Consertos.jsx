@@ -134,13 +134,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     }, 4000);
   };
 
-  // Reset limitCount when filter tab changes
   useEffect(() => {
-    setLimitCount(200);
-  }, [filterStatusTab]);
-
-  useEffect(() => {
-    setLoading(true);
     let q;
     const collRef = collection(db, COLLECTIONS.OS_CONSERTO);
 
@@ -262,22 +256,21 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     }
   };
 
-  // Helper to suggest next OS number
-  useEffect(() => {
-    if (isAddModalOpen && !addFormData.nOS) {
-      // Find highest E OS
-      const eOsNumbers = osList
-        .map(o => o.nOS)
-        .filter(n => n.startsWith('E'))
-        .map(n => Number(n.substring(1)))
-        .filter(num => !isNaN(num));
-      const nextNum = eOsNumbers.length > 0 ? Math.max(...eOsNumbers) + 1 : 1;
-      setAddFormData(prev => ({
-        ...prev,
-        nOS: `E${String(nextNum).padStart(2, '0')}`
-      }));
-    }
-  }, [isAddModalOpen, osList]);
+  const openAddModal = () => {
+    setCollabSearch('');
+    setFilteredCollabs([]);
+    const eOsNumbers = osList
+      .map(o => o.nOS)
+      .filter(n => n && n.startsWith('E'))
+      .map(n => Number(n.substring(1)))
+      .filter(num => !isNaN(num));
+    const nextNum = eOsNumbers.length > 0 ? Math.max(...eOsNumbers) + 1 : 1;
+    setAddFormData(prev => ({
+      ...prev,
+      nOS: `E${String(nextNum).padStart(2, '0')}`
+    }));
+    setIsAddModalOpen(true);
+  };
 
   // Autocomplete suggestion when entering TAG in Add OS Modal
   const handleTagChangeInForm = (val) => {
@@ -840,12 +833,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
 
     return Object.keys(activeFilters).every(colKey => {
       const filterObj = activeFilters[colKey];
-      let val = '';
-      if (colKey === 'diasEmConserto') {
-        val = getDaysInRepair(os);
-      } else {
-        val = os[colKey] || '-';
-      }
+      const val = colKey === 'diasEmConserto' ? getDaysInRepair(os) : (os[colKey] || '-');
       return evaluate(val, filterObj);
     });
   });
@@ -935,7 +923,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
             <Download size={18} /> Planilha Danificadas
           </button>
 
-          <button onClick={() => { setCollabSearch(''); setFilteredCollabs([]); setIsAddModalOpen(true); }} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
+          <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '12px 24px', borderRadius: '8px' }}>
             <Plus size={18} /> Novo Conserto / OS
           </button>
         </div>

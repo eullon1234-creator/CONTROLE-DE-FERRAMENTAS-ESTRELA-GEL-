@@ -82,6 +82,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
 
   const statusFilter = activeFilters.status?.selected?.length === 1 ? activeFilters.status.selected[0] : 'TODOS';
   const setStatusFilter = (status) => {
+    setLimitCount(200);
     setActiveFilters(prev => ({
       ...prev,
       status: {
@@ -99,8 +100,6 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   // Autocomplete search states
   const [collabSearch, setCollabSearch] = useState('');
   const [eqSearch, setEqSearch] = useState('');
-  const [filteredCollabs, setFilteredCollabs] = useState([]);
-  const [filteredEqs, setFilteredEqs] = useState([]);
 
   // Toast State
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -139,13 +138,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
     }, 4000);
   };
 
-  // Reset limitCount when status filter changes
   useEffect(() => {
-    setLimitCount(200);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    setLoading(true);
     let q;
     const collRef = collection(db, COLLECTIONS.TERMOS);
 
@@ -291,29 +284,17 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   }, [termos, loading]);
 
   // Autocomplete Filter Logic
-  useEffect(() => {
-    if (collabSearch.trim() === '') {
-      setFilteredCollabs([]);
-    } else {
-      const matches = colaboradores.filter(c => 
-        c.nome.toLowerCase().includes(collabSearch.toLowerCase())
-      );
-      setFilteredCollabs(matches);
-    }
-  }, [collabSearch, colaboradores]);
+  const filteredCollabs = collabSearch.trim() === ''
+    ? []
+    : colaboradores.filter(c => c.nome.toLowerCase().includes(collabSearch.toLowerCase()));
 
-  useEffect(() => {
-    if (eqSearch.trim() === '') {
-      setFilteredEqs([]);
-    } else {
-      const matches = equipamentos.filter(e => 
+  const filteredEqs = eqSearch.trim() === ''
+    ? []
+    : equipamentos.filter(e => 
         (e.descricao.toLowerCase().includes(eqSearch.toLowerCase()) ||
         e.tag.toLowerCase().includes(eqSearch.toLowerCase())) &&
         e.status !== 'Descartado'
       );
-      setFilteredEqs(matches);
-    }
-  }, [eqSearch, equipamentos]);
 
   const selectCollab = (collab) => {
     setFormData(prev => ({
@@ -323,7 +304,6 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
       colaboradorFuncao: collab.funcao
     }));
     setCollabSearch(collab.nome);
-    setFilteredCollabs([]);
   };
 
   const selectEq = (eq) => {
@@ -340,7 +320,6 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
       locador: eq.locador || ''
     }));
     setEqSearch(eq.descricao);
-    setFilteredEqs([]);
   };
 
   const handleCreateTermo = async (e) => {
@@ -520,7 +499,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
           nextOSNumber = `E${String(nextNum).padStart(2, '0')}`;
         } catch (err) {
           console.error("Erro ao gerar número de OS, usando fallback:", err);
-          nextOSNumber = `E${Date.now().toString().slice(-6)}`;
+          nextOSNumber = `E${term.id.slice(-6)}`;
         }
       }
 

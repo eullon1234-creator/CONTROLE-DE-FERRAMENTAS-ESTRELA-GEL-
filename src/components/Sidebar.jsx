@@ -1,4 +1,4 @@
-import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -13,13 +13,16 @@ import {
 import logoImg from '../assets/logo.png';
 
 const Sidebar = ({ currentPage, setCurrentPage, theme, toggleTheme, user, handleLogout, showInstallBtn, handleInstallApp }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'termos', label: 'Termos de Resp.', icon: FileText },
-    { id: 'equipamentos', label: 'Equipamentos', icon: Wrench },
-    { id: 'consertos', label: 'Consertos / OS', icon: Hammer },
-    { id: 'colaboradores', label: 'Colaboradores', icon: Users },
-    { id: 'importador', label: 'Importar Excel', icon: UploadCloud },
+    { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'termos', path: '/termos', label: 'Termos de Resp.', icon: FileText },
+    { id: 'equipamentos', path: '/equipamentos', label: 'Equipamentos', icon: Wrench },
+    { id: 'consertos', path: '/consertos', label: 'Consertos / OS', icon: Hammer },
+    { id: 'colaboradores', path: '/colaboradores', label: 'Colaboradores', icon: Users },
+    { id: 'importador', path: '/importador', label: 'Importar Excel', icon: UploadCloud },
   ];
 
   return (
@@ -98,11 +101,14 @@ const Sidebar = ({ currentPage, setCurrentPage, theme, toggleTheme, user, handle
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexGrow: 1 }}>
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentPage === item.id;
+          const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path)) || currentPage === item.id;
           return (
             <button
               key={item.id}
-              onClick={() => setCurrentPage(item.id)}
+              onClick={() => {
+                if (setCurrentPage) setCurrentPage(item.id);
+                navigate(item.path);
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',

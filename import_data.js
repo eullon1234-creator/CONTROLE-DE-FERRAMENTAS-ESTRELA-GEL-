@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import fs from 'fs';
-import path from 'path';
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyBty7Tz3RQ8bScCw4oH2b_iqA6FPc6W0t8",

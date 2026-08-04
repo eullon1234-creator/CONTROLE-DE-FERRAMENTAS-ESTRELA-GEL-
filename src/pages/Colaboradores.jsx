@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { db, COLLECTIONS } from '../firebase/config';
 import { 
   collection, 
   onSnapshot, 
   query, 
-  where, 
-  getDocs 
+  where 
 } from 'firebase/firestore';
 import { Search, User, Wrench, ChevronRight, FileText, Printer, ArrowLeft } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
@@ -14,46 +13,40 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
   const [colaboradores, setColaboradores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [osList, setOsList] = useState([]);
-  
-  const [activeFilters, setActiveFilters] = useState({
-    nome: { selected: [], condition: { type: '', value: '' } },
-    funcao: { selected: [], condition: { type: '', value: '' } },
-    totalItensAtivos: { selected: [], condition: { type: '', value: '' } },
-    totalItensDevolvidos: { selected: [], condition: { type: '', value: '' } }
-  });
-  const [sortConfig, setSortConfig] = useState({ key: 'nome', direction: 'asc' });
-  
-  // Selected collaborator for detail view
   const [selectedCollab, setSelectedCollab] = useState(null);
   const [collabTermos, setCollabTermos] = useState([]);
+  const [allOS, setAllOS] = useState([]);
+  const osList = allOS;
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // Column Filters state
+  const [activeFilters, setActiveFilters] = useState({
+    nome: { selected: [], condition: { type: '', value: '' } },
+    cpf: { selected: [], condition: { type: '', value: '' } },
+    funcao: { selected: [], condition: { type: '', value: '' } },
+    empresa: { selected: [], condition: { type: '', value: '' } },
+    qtdItens: { selected: [], condition: { type: '', value: '' } }
+  });
+  const [sortConfig, setSortConfig] = useState({ key: 'nome', direction: 'asc' });
+
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, COLLECTIONS.COLABORADORES), (snapshot) => {
+    const qCollabs = query(collection(db, COLLECTIONS.COLABORADORES));
+    const unsubscribe = onSnapshot(qCollabs, (snapshot) => {
       const list = [];
       snapshot.forEach(doc => {
         list.push({ id: doc.id, ...doc.data() });
       });
-      // Sort by Name
-      list.sort((a, b) => a.nome.localeCompare(b.nome));
       setColaboradores(list);
       setLoading(false);
     });
 
-    const unsubscribeOS = onSnapshot(collection(db, COLLECTIONS.OS_CONSERTO), (snapshot) => {
+    const qOS = query(collection(db, COLLECTIONS.OS_CONSERTO));
+    const unsubscribeOS = onSnapshot(qOS, (snapshot) => {
       const list = [];
       snapshot.forEach(doc => {
-        const data = doc.data();
-        list.push({
-          id: doc.id,
-          ...data,
-          dateOSObj: data.dataOS?.toDate() || null,
-          dateEnvioObj: data.dataEnvio?.toDate() || null,
-          dateRetornoObj: data.dataRetorno?.toDate() || null,
-        });
+        list.push({ id: doc.id, ...doc.data() });
       });
-      setOsList(list);
+      setAllOS(list);
     });
 
     return () => {
@@ -64,12 +57,8 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
 
   // Fetch items for the selected collaborator
   useEffect(() => {
-    if (!selectedCollab) {
-      setCollabTermos([]);
-      return;
-    }
+    if (!selectedCollab) return;
 
-    setLoadingDetails(true);
     const q = query(
       collection(db, COLLECTIONS.TERMOS), 
       where("colaboradorId", "==", selectedCollab.id)

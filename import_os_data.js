@@ -108,7 +108,7 @@ async function run() {
 
   const osToImport = [];
 
-  rows.forEach((row, idx) => {
+  rows.forEach((row) => {
     const nOS = row[nOsCol];
     const desc = row[descCol];
 

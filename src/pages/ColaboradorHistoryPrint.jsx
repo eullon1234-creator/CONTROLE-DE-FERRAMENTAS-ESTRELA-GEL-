@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Printer, Edit } from 'lucide-react';
 import SignaturePad from '../components/SignaturePad';
 

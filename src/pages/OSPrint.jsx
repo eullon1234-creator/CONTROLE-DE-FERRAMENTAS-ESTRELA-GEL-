@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { ArrowLeft, Printer, FileText, Clock, Wrench, CheckCircle } from "lucide-react";
 
 const OSPrint = ({ os, onBack }) => {
@@ -61,7 +61,7 @@ const OSPrint = ({ os, onBack }) => {
     marginBottom: "3px",
   };
 
-  const OSForm = ({ copy }) => (
+  const renderOSForm = (copy) => (
     <div
       style={{
         width: "100%",
@@ -451,7 +451,7 @@ const OSPrint = ({ os, onBack }) => {
           }}
         >
           {/* VIA 1 */}
-          <OSForm copy="ALMOXARIFADO" />
+          {renderOSForm("ALMOXARIFADO")}
 
           {/* SEPARADOR */}
           <div
@@ -473,7 +473,7 @@ const OSPrint = ({ os, onBack }) => {
           </div>
 
           {/* VIA 2 */}
-          <OSForm copy="OFICINA" />
+          {renderOSForm("OFICINA")}
 
           {/* RODAPE */}
           <div

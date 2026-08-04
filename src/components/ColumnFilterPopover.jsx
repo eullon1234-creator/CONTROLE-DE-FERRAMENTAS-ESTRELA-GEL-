@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Filter, ArrowUp, ArrowDown, Search, X, Sliders, ChevronDown, ChevronUp } from 'lucide-react';
 
 const ColumnFilterPopover = ({
   title,
-  columnKey,
   uniqueValues = [],
   selectedValues = [], // array of checked items (empty means all selected)
   onSelectChange,
@@ -24,22 +23,17 @@ const ColumnFilterPopover = ({
   const [tempSelectedValues, setTempSelectedValues] = useState(selectedValues);
   const [tempConditionFilter, setTempConditionFilter] = useState(conditionFilter);
 
-  // Sync temporary state with props whenever popover opens
-  useEffect(() => {
-    if (isOpen) {
+  // Toggle popover visibility
+  const togglePopover = (e) => {
+    e.stopPropagation();
+    if (!isOpen) {
       setTempSelectedValues(selectedValues);
       setTempConditionFilter(conditionFilter || { type: '', value: '' });
       setSearchValue('');
-      // Expand condition section if a condition is already active
       if (conditionFilter && conditionFilter.type) {
         setIsConditionExpanded(true);
       }
     }
-  }, [isOpen, selectedValues, conditionFilter]);
-
-  // Toggle popover visibility
-  const togglePopover = (e) => {
-    e.stopPropagation();
     setIsOpen(!isOpen);
   };
 

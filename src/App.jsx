@@ -1,22 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { auth, db, COLLECTIONS } from './firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 
-// Component and page imports
+// Component and page imports with Lazy Loading (Code Splitting)
 import Sidebar from './components/Sidebar';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Termos from './pages/Termos';
-import Equipamentos from './pages/Equipamentos';
-import Colaboradores from './pages/Colaboradores';
-import Importador from './pages/Importador';
-import Consertos from './pages/Consertos';
-import TermoPrint from './pages/TermoPrint';
-import TermoConsolidatedPrint from './pages/TermoConsolidatedPrint';
-import OSPrint from './pages/OSPrint';
-import ColaboradorHistoryPrint from './pages/ColaboradorHistoryPrint';
-import RelatorioPrint from './pages/RelatorioPrint';
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Termos = lazy(() => import('./pages/Termos'));
+const Equipamentos = lazy(() => import('./pages/Equipamentos'));
+const Colaboradores = lazy(() => import('./pages/Colaboradores'));
+const Importador = lazy(() => import('./pages/Importador'));
+const Consertos = lazy(() => import('./pages/Consertos'));
+const TermoPrint = lazy(() => import('./pages/TermoPrint'));
+const TermoConsolidatedPrint = lazy(() => import('./pages/TermoConsolidatedPrint'));
+const OSPrint = lazy(() => import('./pages/OSPrint'));
+const ColaboradorHistoryPrint = lazy(() => import('./pages/ColaboradorHistoryPrint'));
+const RelatorioPrint = lazy(() => import('./pages/RelatorioPrint'));
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -164,78 +165,99 @@ const App = () => {
     );
   }
 
+  // Fallback visual de carregamento
+  const loadingFallback = (
+    <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)', fontFamily: 'var(--font-heading)' }}>
+      Carregando módulo...
+    </div>
+  );
+
   // 1. If not authenticated, force Login
   if (!user) {
-    return <Login />;
+    return (
+      <Suspense fallback={loadingFallback}>
+        <Login />
+      </Suspense>
+    );
   }
 
   // 2. Render Printable Term View directly without Sidebar/Layout
   if (currentPage === 'print_termo' && printTerm) {
     return (
-      <TermoPrint 
-        term={printTerm} 
-        onBack={() => {
-          setPrintTerm(null);
-          setCurrentPage('termos');
-        }} 
-      />
+      <Suspense fallback={loadingFallback}>
+        <TermoPrint 
+          term={printTerm} 
+          onBack={() => {
+            setPrintTerm(null);
+            setCurrentPage('termos');
+          }} 
+        />
+      </Suspense>
     );
   }
 
   // 3. Render Printable Consolidated Term View directly without Sidebar/Layout
   if (currentPage === 'print_consolidado' && printConsolidated) {
     return (
-      <TermoConsolidatedPrint
-        collaborator={printConsolidated.collaborator}
-        items={printConsolidated.items}
-        onBack={() => {
-          setPrintConsolidated(null);
-          setCurrentPage('colaboradores');
-        }}
-      />
+      <Suspense fallback={loadingFallback}>
+        <TermoConsolidatedPrint
+          collaborator={printConsolidated.collaborator}
+          items={printConsolidated.items}
+          onBack={() => {
+            setPrintConsolidated(null);
+            setCurrentPage('colaboradores');
+          }}
+        />
+      </Suspense>
     );
   }
 
   // 4. Render Printable OS View directly without Sidebar/Layout
   if (currentPage === 'print_os' && printOS) {
     return (
-      <OSPrint
-        os={printOS}
-        onBack={() => {
-          setPrintOS(null);
-          setCurrentPage('consertos');
-        }}
-      />
+      <Suspense fallback={loadingFallback}>
+        <OSPrint
+          os={printOS}
+          onBack={() => {
+            setPrintOS(null);
+            setCurrentPage('consertos');
+          }}
+        />
+      </Suspense>
     );
   }
 
   // 5. Render Printable Historico View directly without Sidebar/Layout
   if (currentPage === 'print_historico' && printHistorico) {
     return (
-      <ColaboradorHistoryPrint
-        collaborator={printHistorico.collaborator}
-        terms={printHistorico.terms}
-        osList={printHistorico.osList}
-        onBack={() => {
-          setPrintHistorico(null);
-          setCurrentPage('colaboradores');
-        }}
-      />
+      <Suspense fallback={loadingFallback}>
+        <ColaboradorHistoryPrint
+          collaborator={printHistorico.collaborator}
+          terms={printHistorico.terms}
+          osList={printHistorico.osList}
+          onBack={() => {
+            setPrintHistorico(null);
+            setCurrentPage('colaboradores');
+          }}
+        />
+      </Suspense>
     );
   }
 
   // Render Printable Relatorio View directly without Sidebar/Layout
   if (currentPage === 'print_relatorio' && printRelatorio) {
     return (
-      <RelatorioPrint
-        type={printRelatorio.type}
-        items={printRelatorio.items}
-        onBack={() => {
-          const backPage = printRelatorio.type === 'ativas' ? 'termos' : 'consertos';
-          setPrintRelatorio(null);
-          setCurrentPage(backPage);
-        }}
-      />
+      <Suspense fallback={loadingFallback}>
+        <RelatorioPrint
+          type={printRelatorio.type}
+          items={printRelatorio.items}
+          onBack={() => {
+            const backPage = printRelatorio.type === 'ativas' ? 'termos' : 'consertos';
+            setPrintRelatorio(null);
+            setCurrentPage(backPage);
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -257,12 +279,16 @@ const App = () => {
 
       {/* Pages Container */}
       <main style={{ flexGrow: 1, backgroundColor: 'var(--bg-app)', transition: 'background-color 0.3s' }}>
-        {currentPage === 'dashboard' && <Dashboard />}
-        {currentPage === 'termos' && <Termos onPrintTerm={handlePrintTerm} onPrintRelatorio={handlePrintRelatorio} />}
-        {currentPage === 'equipamentos' && <Equipamentos />}
-        {currentPage === 'colaboradores' && <Colaboradores onPrintConsolidated={handlePrintConsolidated} onPrintHistorico={handlePrintHistorico} />}
-        {currentPage === 'consertos' && <Consertos onPrintOS={handlePrintOS} onPrintRelatorio={handlePrintRelatorio} />}
-        {currentPage === 'importador' && <Importador />}
+        <Suspense fallback={loadingFallback}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/termos" element={<Termos onPrintTerm={handlePrintTerm} onPrintRelatorio={handlePrintRelatorio} />} />
+            <Route path="/equipamentos" element={<Equipamentos />} />
+            <Route path="/colaboradores" element={<Colaboradores onPrintConsolidated={handlePrintConsolidated} onPrintHistorico={handlePrintHistorico} />} />
+            <Route path="/consertos" element={<Consertos onPrintOS={handlePrintOS} onPrintRelatorio={handlePrintRelatorio} />} />
+            <Route path="/importador" element={<Importador />} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* PWA Installation Modal */}

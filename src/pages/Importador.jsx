@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { db, COLLECTIONS } from '../firebase/config';
 import { 
   collection, 
   writeBatch, 
   doc, 
   Timestamp,
-  addDoc,
   getDocs
 } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
