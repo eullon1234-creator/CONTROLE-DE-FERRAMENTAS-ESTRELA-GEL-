@@ -516,14 +516,10 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
         }
 
         // 2. All writes must be done after!
-        const updateData = {
+        transaction.update(termRef, {
           status: newStatus,
           dataDevolucao: Timestamp.now()
-        };
-        if (newStatus === 'EM CONCERTO') {
-          updateData.osVinculada = nextOSNumber;
-        }
-        transaction.update(termRef, updateData);
+        });
 
         if (collabSnap.exists()) {
           const currentAtivos = collabSnap.data().totalItensAtivos || 0;
