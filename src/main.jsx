@@ -10,9 +10,19 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 );
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/CONTROLE-DE-FERRAMENTAS-ESTRELA-GEL-/sw.js')
-      .then((reg) => console.log('Service Worker registrado!', reg))
-      .catch((err) => console.error('Erro ao registrar Service Worker:', err));
-  });
+  if (import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+      navigator.serviceWorker.register(swUrl)
+        .then((reg) => console.log('Service Worker registrado com sucesso!', reg))
+        .catch((err) => console.error('Erro ao registrar Service Worker:', err));
+    });
+  } else {
+    // Em desenvolvimento, desregistra service workers anteriores para não interferir no HMR/Vite
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
 }

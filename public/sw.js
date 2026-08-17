@@ -1,15 +1,18 @@
-const CACHE_NAME = 'gel-ferramentaria-v1';
+const CACHE_NAME = 'gel-ferramentaria-v2';
 const ASSETS = [
   './',
   './index.html',
   './logo.png',
-  './favicon.svg'
+  './favicon.svg',
+  './manifest.json'
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      return cache.addAll(ASSETS).catch((err) => {
+        console.warn('Erro ao pré-armazenar assets em cache:', err);
+      });
     }).then(() => self.skipWaiting())
   );
 });
@@ -25,23 +28,68 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Let firestore handle its own requests, we only cache local assets
-  if (e.request.url.includes('firestore.googleapis.com') || e.request.url.includes('firebaseinstallations.googleapis.com')) {
+  // Only handle GET requests
+  if (e.request.method !== 'GET') {
     return;
   }
-  
+
+  // Only handle http/https requests (skip chrome-extension://, data:, blob:)
+  if (!e.request.url.startsWith('http')) {
+    return;
+  }
+
+  const url = new URL(e.request.url);
+
+  // Bypass all external APIs, Firebase, Google APIs, and telemetry
+  if (
+    url.hostname.includes('firebase') ||
+    url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('google-analytics.com') ||
+    url.hostname.includes('googletagmanager.com') ||
+    url.hostname !== self.location.hostname
+  ) {
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch in background to update cache
+        // Stale-while-revalidate: update cache in background for local assets
         fetch(e.request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, networkResponse));
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, responseToCache));
           }
-        }).catch(() => {});
+        }).catch(() => {
+          // Ignore background fetch errors (e.g. offline)
+        });
         return cachedResponse;
       }
-      return fetch(e.request);
+
+      // If not in cache, fetch from network
+      return fetch(e.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch((error) => {
+          // If offline/network fails and it's a page navigation, return index.html fallback
+          if (e.request.mode === 'navigate') {
+            return caches.match('./index.html').then((indexFallback) => {
+              if (indexFallback) return indexFallback;
+              return caches.match('./');
+            });
+          }
+          // Return a safe error response instead of rejecting unhandled
+          return new Response('Network error occurred', {
+            status: 408,
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
     })
   );
 });
+
