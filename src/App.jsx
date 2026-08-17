@@ -1,11 +1,11 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { auth, db, COLLECTIONS } from './firebase/config';
+import { auth } from './firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 
 // Component and page imports with Lazy Loading (Code Splitting)
 import Sidebar from './components/Sidebar';
+import LoadingSpinner from './components/LoadingSpinner';
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Termos = lazy(() => import('./pages/Termos'));
@@ -37,54 +37,7 @@ const App = () => {
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [activeInstallTab, setActiveInstallTab] = useState('pc');
 
-  // Temporary Migration to correct 'discartado' / 'discartada' spelling in observations
-  useEffect(() => {
-    if (localStorage.getItem('spelling_migration_v1') === 'true') return;
 
-    const runMigration = async () => {
-      try {
-        console.log("Iniciando migração de correção ortográfica...");
-        
-        // 1. Corrigir Termos
-        const termosRef = collection(db, COLLECTIONS.TERMOS);
-        const termosSnap = await getDocs(termosRef);
-        let termosCount = 0;
-        for (const docSnap of termosSnap.docs) {
-          const data = docSnap.data();
-          if (data.observacao && (data.observacao.toLowerCase().includes('discartado') || data.observacao.toLowerCase().includes('discartada'))) {
-            const newObs = data.observacao
-              .replace(/discartado/gi, 'descartado')
-              .replace(/discartada/gi, 'descartada');
-            await updateDoc(doc(db, COLLECTIONS.TERMOS, docSnap.id), { observacao: newObs });
-            termosCount++;
-            console.log(`Termo corrigido (${docSnap.id}): "${data.observacao}" -> "${newObs}"`);
-          }
-        }
-
-        // 2. Corrigir OSs
-        const osRef = collection(db, COLLECTIONS.OS_CONSERTO);
-        const osSnap = await getDocs(osRef);
-        let osCount = 0;
-        for (const docSnap of osSnap.docs) {
-          const data = docSnap.data();
-          if (data.observacao && (data.observacao.toLowerCase().includes('discartado') || data.observacao.toLowerCase().includes('discartada'))) {
-            const newObs = data.observacao
-              .replace(/discartado/gi, 'descartado')
-              .replace(/discartada/gi, 'descartada');
-            await updateDoc(doc(db, COLLECTIONS.OS_CONSERTO, docSnap.id), { observacao: newObs });
-            osCount++;
-            console.log(`OS corrigida (${docSnap.id}): "${data.observacao}" -> "${newObs}"`);
-          }
-        }
-
-        console.log(`Migração concluída! Termos corrigidos: ${termosCount}, OSs corrigidas: ${osCount}`);
-        localStorage.setItem('spelling_migration_v1', 'true');
-      } catch (err) {
-        console.error("Erro na migração ortográfica:", err);
-      }
-    };
-    runMigration();
-  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -148,29 +101,11 @@ const App = () => {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: theme === 'dark' ? '#090d16' : '#f4f6fc',
-        color: theme === 'dark' ? '#ffffff' : '#0f172a',
-        fontFamily: 'var(--font-heading)'
-      }}>
-        <h2>GEL Engenharia</h2>
-        <span style={{ fontSize: '0.85rem', opacity: 0.5, marginTop: '8px' }}>Carregando controle de ferramentaria...</span>
-      </div>
-    );
+    return <LoadingSpinner fullScreen message="Carregando controle de ferramentaria..." />;
   }
 
   // Fallback visual de carregamento
-  const loadingFallback = (
-    <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)', fontFamily: 'var(--font-heading)' }}>
-      Carregando módulo...
-    </div>
-  );
+  const loadingFallback = <LoadingSpinner message="Carregando módulo..." />;
 
   // 1. If not authenticated, force Login
   if (!user) {

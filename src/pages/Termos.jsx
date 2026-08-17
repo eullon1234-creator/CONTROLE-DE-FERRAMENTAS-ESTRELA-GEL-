@@ -27,14 +27,7 @@ import {
 import SignaturePad from '../components/SignaturePad';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
 import { exportActiveToolsExcel } from '../utils/exportExcel';
-const classifyGroup = (desc) => {
-  const d = String(desc || '').toLowerCase();
-  if (d.includes('bateria') || d.includes('carregador')) return 'Bateria / Acessório';
-  if (d.includes('pneumat') || d.includes('pneumá')) return 'Pneumática';
-  if (d.includes('solde') || d.includes('solda') || d.includes('compressor') || d.includes('gerador') || d.includes('bomba')) return 'Máquina';
-  if (d.includes('furadeira') || d.includes('lixadeira') || d.includes('esmerilhadeira') || d.includes('serra') || d.includes('martelete') || d.includes('soprador') || d.includes('parafusadeira') || d.includes('tupia') || d.includes('plaina') || d.includes('politriz') || d.includes('gsh') || d.includes('gsb')) return 'Elétrica';
-  return 'Ferramenta Manual';
-};
+import { classifyGroup } from '../utils/classifyGroup';
 
 const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   const [termos, setTermos] = useState([]);
