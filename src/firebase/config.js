@@ -8,18 +8,14 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBty7Tz3RQ8bScCw4oH2b_iqA6FPc6W0t8",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "controle-de-ferramentas-efde4.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "controle-de-ferramentas-efde4",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "controle-de-ferramentas-efde4.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "313513963680",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:313513963680:web:52b4df54cfd88de51899c5",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-XNJHJN417B"
 };
-
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.warn("⚠️ Variáveis de ambiente do Firebase não encontradas! Verifique o arquivo .env.local.");
-}
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
