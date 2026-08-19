@@ -2,13 +2,16 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { auth } from './firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Menu, Search, Sun, Moon } from 'lucide-react';
+import { Menu, Search, Sun, Moon, Tag } from 'lucide-react';
 import logoImg from './assets/logo.png';
 
 // Component and page imports with Lazy Loading (Code Splitting)
 import Sidebar from './components/Sidebar';
 import LoadingSpinner from './components/LoadingSpinner';
 import CommandPalette from './components/CommandPalette';
+import NetworkStatusBanner from './components/NetworkStatusBanner';
+import QuickTagLookupModal from './components/QuickTagLookupModal';
+import MobileBottomNav from './components/MobileBottomNav';
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -29,9 +32,10 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
-  // Mobile Drawer & Global Search States
+  // Mobile Drawer, Quick Tag & Global Search States
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isTagLookupOpen, setIsTagLookupOpen] = useState(false);
 
   // Printing state variables
   const [printTerm, setPrintTerm] = useState(null);
@@ -217,6 +221,8 @@ const App = () => {
   // Main authenticated dashboard layout
   return (
     <div style={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
+      {/* Network Status Banner (Offline / Online detector) */}
+      <NetworkStatusBanner />
       
       {/* Mobile Topbar */}
       <header className="mobile-topbar no-print">
@@ -245,14 +251,38 @@ const App = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Quick TAG button in mobile header */}
+          <button
+            onClick={() => setIsTagLookupOpen(true)}
+            style={{
+              background: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              color: 'var(--color-primary-light)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 700,
+              fontSize: '0.78rem'
+            }}
+            aria-label="Consultar TAG da Ferramenta"
+            title="Consultar TAG"
+          >
+            <Tag size={15} />
+            <span>TAG</span>
+          </button>
+
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
             style={{
-              background: 'rgba(59, 130, 246, 0.1)',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-card)',
               borderRadius: '8px',
               padding: '8px',
-              color: 'var(--color-primary-light)',
+              color: 'var(--text-primary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center'
@@ -261,6 +291,7 @@ const App = () => {
           >
             <Search size={18} />
           </button>
+
           <button
             onClick={toggleTheme}
             style={{
@@ -310,6 +341,15 @@ const App = () => {
           </Suspense>
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav onOpenTagLookup={() => setIsTagLookupOpen(true)} />
+
+      {/* Quick TAG Lookup Modal (Field / Offline Tool) */}
+      <QuickTagLookupModal 
+        isOpen={isTagLookupOpen}
+        onClose={() => setIsTagLookupOpen(false)}
+      />
 
       {/* Global Command Palette (Ctrl+K) */}
       <CommandPalette 
