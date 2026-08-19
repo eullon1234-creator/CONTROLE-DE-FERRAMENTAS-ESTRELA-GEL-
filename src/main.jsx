@@ -17,7 +17,10 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       const swUrl = `${import.meta.env.BASE_URL}sw.js`;
       navigator.serviceWorker.register(swUrl)
-        .then((reg) => console.log('Service Worker registrado com sucesso!', reg))
+        .then((reg) => {
+          reg.update();
+          console.log('Service Worker registrado com sucesso!', reg);
+        })
         .catch((err) => console.error('Erro ao registrar Service Worker:', err));
     });
   } else {

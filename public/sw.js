@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gel-ferramentaria-v2';
+const CACHE_NAME = 'gel-ferramentaria-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -21,7 +21,10 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.filter((key) => key !== CACHE_NAME).map((key) => {
+          console.log('[SW] Removendo cache antigo:', key);
+          return caches.delete(key);
+        })
       );
     }).then(() => self.clients.claim())
   );
@@ -33,7 +36,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Only handle http/https requests (skip chrome-extension://, data:, blob:)
+  // Only handle http/https requests
   if (!e.request.url.startsWith('http')) {
     return;
   }
@@ -51,22 +54,42 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // 1. Navigation requests (HTML / page loads): NETWORK FIRST to ensure fresh deployment updates
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // If offline or network error, fallback to cached index.html
+          return caches.match('./index.html').then((cachedIndex) => {
+            if (cachedIndex) return cachedIndex;
+            return caches.match('./');
+          });
+        })
+    );
+    return;
+  }
+
+  // 2. Static Assets (JS, CSS, Images): Cache First with background revalidation
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Stale-while-revalidate: update cache in background for local assets
+        // Update in background
         fetch(e.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(e.request, responseToCache));
           }
-        }).catch(() => {
-          // Ignore background fetch errors (e.g. offline)
-        });
+        }).catch(() => {});
         return cachedResponse;
       }
 
-      // If not in cache, fetch from network
       return fetch(e.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
@@ -76,14 +99,6 @@ self.addEventListener('fetch', (e) => {
           return networkResponse;
         })
         .catch(() => {
-          // If offline/network fails and it's a page navigation, return index.html fallback
-          if (e.request.mode === 'navigate') {
-            return caches.match('./index.html').then((indexFallback) => {
-              if (indexFallback) return indexFallback;
-              return caches.match('./');
-            });
-          }
-          // Return a safe error response instead of rejecting unhandled
           return new Response('Network error occurred', {
             status: 408,
             headers: { 'Content-Type': 'text/plain' }
@@ -92,4 +107,3 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
-
