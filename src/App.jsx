@@ -243,7 +243,7 @@ const App = () => {
             <Menu size={24} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src={logoImg} alt="GEL" style={{ height: '26px' }} />
+            <img src={logoImg} alt="GEL" style={{ height: '28px', width: '28px', borderRadius: '7px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.15)' }} />
             <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '0.92rem', color: 'var(--color-primary-light)' }}>
               GEL <span style={{ color: 'var(--color-accent)' }}>ESTRELA</span>
             </span>

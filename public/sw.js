@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gel-ferramentaria-v3';
+const CACHE_NAME = 'gel-ferramentaria-v4';
 const ASSETS = [
   './',
   './index.html',

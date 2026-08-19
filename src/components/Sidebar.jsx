@@ -105,22 +105,22 @@ const Sidebar = ({
           </button>
 
           <div style={{
-            backgroundColor: '#ffffff',
-            padding: '10px 14px',
-            borderRadius: '8px',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             width: '100%',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+            marginBottom: '4px'
           }}>
             <img 
               src={logoImg} 
-              alt="GEL Logo" 
+              alt="GEL Ferramentas" 
               style={{ 
-                maxHeight: '38px',
-                maxWidth: '100%',
-                objectFit: 'contain'
+                width: '68px',
+                height: '68px',
+                borderRadius: '16px',
+                objectFit: 'cover',
+                boxShadow: '0 6px 16px rgba(0, 0, 0, 0.25)',
+                border: '2px solid rgba(255, 255, 255, 0.15)'
               }} 
             />
           </div>

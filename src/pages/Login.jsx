@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { auth } from '../firebase/config';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { KeyRound, Mail, AlertCircle, UserPlus, LogIn } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -23,19 +24,19 @@ const Login = () => {
       if (isRegistering) {
         // Create user in Firebase Auth
         await createUserWithEmailAndPassword(auth, email, password);
-        setSuccess('Conta criada e autenticada com sucesso!');
+        setSuccess('Usuário criado com sucesso! Você já está autenticado.');
       } else {
-        // Sign in user
+        // Login
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (err) {
-      console.error(err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Usuário ou senha incorretos.');
+      console.error("Auth error:", err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError('E-mail ou senha incorretos.');
       } else if (err.code === 'auth/email-already-in-use') {
-        setError('Este e-mail já está em uso.');
+        setError('Este e-mail já está cadastrado.');
       } else if (err.code === 'auth/weak-password') {
-        setError('A senha deve ter pelo menos 6 caracteres.');
+        setError('A senha deve ter no mínimo 6 caracteres.');
       } else {
         setError('Erro de autenticação: ' + err.message);
       }
@@ -57,16 +58,28 @@ const Login = () => {
       <div className="glass-panel" style={{
         width: '100%',
         maxWidth: '420px',
-        padding: '40px',
+        padding: '40px 32px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '24px'
+        gap: '20px'
       }}>
         {/* Brand logo header */}
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <img 
+            src={logoImg} 
+            alt="GEL Ferramentas" 
+            style={{ 
+              width: '84px', 
+              height: '84px', 
+              borderRadius: '20px', 
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+              marginBottom: '14px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }} 
+          />
           <h1 style={{
             fontFamily: 'var(--font-heading)',
-            fontSize: '2.5rem',
+            fontSize: '2.2rem',
             fontWeight: 800,
             color: 'var(--color-primary)',
             letterSpacing: '-0.02em',
