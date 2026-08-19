@@ -9,17 +9,11 @@ import {
 } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { Upload, AlertCircle, CheckCircle, Database, HelpCircle } from 'lucide-react';
-
-const classifyGroup = (desc) => {
-  const d = String(desc || '').toLowerCase();
-  if (d.includes('bateria') || d.includes('carregador')) return 'Bateria / Acessório';
-  if (d.includes('pneumat') || d.includes('pneumá')) return 'Pneumática';
-  if (d.includes('solde') || d.includes('solda') || d.includes('compressor') || d.includes('gerador') || d.includes('bomba')) return 'Máquina';
-  if (d.includes('furadeira') || d.includes('lixadeira') || d.includes('esmerilhadeira') || d.includes('serra') || d.includes('martelete') || d.includes('soprador') || d.includes('parafusadeira') || d.includes('tupia') || d.includes('plaina') || d.includes('politriz') || d.includes('gsh') || d.includes('gsb')) return 'Elétrica';
-  return 'Ferramenta Manual';
-};
+import { classifyGroup } from '../utils/classifyGroup';
+import { useToast } from '../components/Toast';
 
 const Importador = () => {
+  const toast = useToast();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: '', msg: '' });
@@ -38,7 +32,7 @@ const Importador = () => {
 
   const processImport = async () => {
     if (!file) {
-      alert('Selecione um arquivo Excel primeiro.');
+      toast.warning('Selecione um arquivo Excel primeiro.');
       return;
     }
 
@@ -487,16 +481,16 @@ const Importador = () => {
   };
 
   return (
-    <div style={{ padding: '40px 40px 40px 320px', minHeight: '100vh' }}>
+    <div className="page-container">
       {/* Header */}
       <div>
-        <span style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: '0.82rem', color: 'var(--color-primary-light)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
           Configurações Iniciais
         </span>
-        <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px', marginBottom: '30px' }}>Importador de Planilha</h1>
+        <h1 style={{ fontSize: '2rem', color: 'var(--text-primary)', marginTop: '2px', marginBottom: '24px' }}>Importador de Planilha</h1>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
         
         {/* Upload form */}
         <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>

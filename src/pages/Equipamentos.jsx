@@ -16,8 +16,12 @@ import {
 import { Plus, Search, Edit3, Trash2, X, ShieldAlert, Cpu } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
 import { classifyGroup } from '../utils/classifyGroup';
+import { useToast } from '../components/Toast';
+import EmptyState from '../components/EmptyState';
+import { logAuditAction } from '../utils/auditLogger';
 
 const Equipamentos = () => {
+  const toast = useToast();
   const [equipamentos, setEquipamentos] = useState([]);
   const [termos, setTermos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,7 +141,7 @@ const Equipamentos = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.tag || !formData.descricao) {
-      alert('TAG e Descrição são campos obrigatórios.');
+      toast.warning('TAG e Descrição são campos obrigatórios.');
       return;
     }
 
@@ -152,6 +156,14 @@ const Equipamentos = () => {
           ...formData,
           grupo: classifyGroup(formData.descricao),
           atualizadoEm: Timestamp.now()
+        });
+
+        // Log audit
+        logAuditAction({
+          action: 'EDITAR_EQUIPAMENTO',
+          entityType: 'EQUIPAMENTO',
+          entityId: editItem.id,
+          details: formData
         });
 
         // Se o status mudou para 'Descartado' ou 'Devolvido ao Fornecedor'
@@ -214,6 +226,8 @@ const Equipamentos = () => {
             console.warn('Erro ao atualizar Termos na alteração do Equipamento:', termErr);
           }
         }
+
+        toast.success('Equipamento atualizado com sucesso!');
       } else {
         // Add (using the TAG itself as document ID to enforce uniqueness)
         const docRef = doc(db, COLLECTIONS.EQUIPAMENTOS, formData.tag.trim());
@@ -223,11 +237,20 @@ const Equipamentos = () => {
           criadoEm: Timestamp.now(),
           atualizadoEm: Timestamp.now()
         }, { merge: true });
+
+        logAuditAction({
+          action: 'CRIAR_EQUIPAMENTO',
+          entityType: 'EQUIPAMENTO',
+          entityId: formData.tag.trim(),
+          details: formData
+        });
+
+        toast.success('Equipamento cadastrado com sucesso!');
       }
       setIsModalOpen(false);
     } catch (err) {
       console.error("Error saving equipment:", err);
-      alert('Erro ao salvar equipamento: ' + err.message);
+      toast.error('Erro ao salvar equipamento: ' + err.message);
     }
   };
 
@@ -237,9 +260,16 @@ const Equipamentos = () => {
 
     try {
       await deleteDoc(doc(db, COLLECTIONS.EQUIPAMENTOS, item.id));
+      logAuditAction({
+        action: 'EXCLUIR_EQUIPAMENTO',
+        entityType: 'EQUIPAMENTO',
+        entityId: item.id,
+        details: item
+      });
+      toast.success('Equipamento excluído com sucesso!');
     } catch (err) {
       console.error("Error deleting equipment:", err);
-      alert("Erro ao excluir equipamento: " + err.message);
+      toast.error("Erro ao excluir equipamento: " + err.message);
     }
   };
 
@@ -363,7 +393,7 @@ const Equipamentos = () => {
   });
 
   return (
-    <div style={{ padding: '40px 40px 40px 320px', minHeight: '100vh' }}>
+    <div className="page-container">
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
@@ -659,9 +689,25 @@ const Equipamentos = () => {
           </div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-            Nenhum equipamento correspondente aos filtros.
-          </div>
+          <EmptyState
+            title="Nenhum equipamento encontrado"
+            description="Não encontramos nenhum item correspondente aos filtros ou busca aplicados."
+            actionLabel="Limpar Filtros"
+            onAction={() => {
+              setSearch('');
+              setFilterType('TODOS');
+              setActiveFilters({
+                tag: { selected: [], condition: { type: '', value: '' } },
+                grupo: { selected: [], condition: { type: '', value: '' } },
+                descricao: { selected: [], condition: { type: '', value: '' } },
+                marcaModelo: { selected: [], condition: { type: '', value: '' } },
+                und: { selected: [], condition: { type: '', value: '' } },
+                quantidadeTotal: { selected: [], condition: { type: '', value: '' } },
+                status: { selected: [], condition: { type: '', value: '' } },
+                tipoPosse: { selected: [], condition: { type: '', value: '' } }
+              });
+            }}
+          />
         )}
       </div>
 

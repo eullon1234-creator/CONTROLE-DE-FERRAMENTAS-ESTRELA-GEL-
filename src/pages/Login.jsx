@@ -44,12 +44,6 @@ const Login = () => {
     }
   };
 
-  // Demo auto-fill option for initial launch
-  const handleQuickFill = () => {
-    setEmail('almoxarifado@gel.com.br');
-    setPassword('gel123456');
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -98,17 +92,17 @@ const Login = () => {
           gap: '8px',
           padding: '12px',
           borderRadius: '6px',
-          backgroundColor: 'rgba(234, 179, 8, 0.08)',
-          border: '1px solid rgba(234, 179, 8, 0.15)',
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.15)',
           fontSize: '0.75rem',
           color: 'var(--text-secondary)'
         }}>
-          <AlertCircle size={18} style={{ flexShrink: 0, color: 'var(--color-warning)' }} />
+          <AlertCircle size={18} style={{ flexShrink: 0, color: 'var(--color-primary-light)' }} />
           <div>
             {isRegistering ? (
-              <><strong>Nova Conta:</strong> Digite seu e-mail corporativo e crie uma senha segura de acesso (mínimo de 6 caracteres).</>
+              <><strong>Nova Conta:</strong> Digite seu e-mail institucional da GEL e crie uma senha segura de acesso (mínimo de 6 caracteres).</>
             ) : (
-              <><strong>Acesso ao Sistema:</strong> Crie a conta do Almoxarifado no botão "Criar Nova Conta" abaixo ou use a de demonstração.</>
+              <><strong>Acesso Restrito:</strong> Entre com suas credenciais do Almoxarifado ou clique em "Criar Nova Conta" caso seja seu primeiro acesso.</>
             )}
           </div>
         </div>
@@ -202,24 +196,6 @@ const Login = () => {
           >
             {isRegistering ? 'Já tenho conta: Fazer Login' : 'Não tem conta? Criar Nova Conta'}
           </button>
-
-          {!isRegistering && (
-            <button 
-              type="button" 
-              onClick={handleQuickFill}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                fontSize: '0.75rem',
-                cursor: 'pointer',
-                fontWeight: 600,
-                marginTop: '4px'
-              }}
-            >
-              Preencher dados de demonstração (almoxarifado@gel.com.br)
-            </button>
-          )}
         </div>
 
       </div>

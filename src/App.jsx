@@ -2,10 +2,14 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { auth } from './firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { Menu, Search, Sun, Moon } from 'lucide-react';
+import logoImg from './assets/logo.png';
 
 // Component and page imports with Lazy Loading (Code Splitting)
 import Sidebar from './components/Sidebar';
 import LoadingSpinner from './components/LoadingSpinner';
+import CommandPalette from './components/CommandPalette';
+
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Termos = lazy(() => import('./pages/Termos'));
@@ -25,19 +29,21 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
+  // Mobile Drawer & Global Search States
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
   // Printing state variables
   const [printTerm, setPrintTerm] = useState(null);
-  const [printConsolidated, setPrintConsolidated] = useState(null); // { collaborator, items }
-  const [printOS, setPrintOS] = useState(null); // OS to print
-  const [printHistorico, setPrintHistorico] = useState(null); // { collaborator, terms, osList }
-  const [printRelatorio, setPrintRelatorio] = useState(null); // { type, items }
+  const [printConsolidated, setPrintConsolidated] = useState(null);
+  const [printOS, setPrintOS] = useState(null);
+  const [printHistorico, setPrintHistorico] = useState(null);
+  const [printRelatorio, setPrintRelatorio] = useState(null);
 
   // PWA States
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [activeInstallTab, setActiveInstallTab] = useState('pc');
-
-
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -61,6 +67,18 @@ const App = () => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Global Ctrl+K / Cmd+K shortcut for Command Palette
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -196,35 +214,108 @@ const App = () => {
     );
   }
 
-  // 4. Main authenticated dashboard layout
+  // Main authenticated dashboard layout
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
       
-      {/* Sidebar Navigation */}
-      <Sidebar 
-        currentPage={currentPage} 
-        setCurrentPage={setCurrentPage} 
-        theme={theme}
-        toggleTheme={toggleTheme}
-        user={user}
-        handleLogout={handleLogout}
-        showInstallBtn={!window.matchMedia('(display-mode: standalone)').matches}
-        handleInstallApp={() => setIsInstallModalOpen(true)}
-      />
+      {/* Mobile Topbar */}
+      <header className="mobile-topbar no-print">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '6px'
+            }}
+            aria-label="Abrir Menu"
+          >
+            <Menu size={24} />
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src={logoImg} alt="GEL" style={{ height: '26px' }} />
+            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '0.92rem', color: 'var(--color-primary-light)' }}>
+              GEL <span style={{ color: 'var(--color-accent)' }}>ESTRELA</span>
+            </span>
+          </div>
+        </div>
 
-      {/* Pages Container */}
-      <main style={{ flexGrow: 1, backgroundColor: 'var(--bg-app)', transition: 'background-color 0.3s' }}>
-        <Suspense fallback={loadingFallback}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/termos" element={<Termos onPrintTerm={handlePrintTerm} onPrintRelatorio={handlePrintRelatorio} />} />
-            <Route path="/equipamentos" element={<Equipamentos />} />
-            <Route path="/colaboradores" element={<Colaboradores onPrintConsolidated={handlePrintConsolidated} onPrintHistorico={handlePrintHistorico} />} />
-            <Route path="/consertos" element={<Consertos onPrintOS={handlePrintOS} onPrintRelatorio={handlePrintRelatorio} />} />
-            <Route path="/importador" element={<Importador />} />
-          </Routes>
-        </Suspense>
-      </main>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            style={{
+              background: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              borderRadius: '8px',
+              padding: '8px',
+              color: 'var(--color-primary-light)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            aria-label="Buscar"
+          >
+            <Search size={18} />
+          </button>
+          <button
+            onClick={toggleTheme}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-card)',
+              borderRadius: '8px',
+              padding: '8px',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            aria-label="Alternar Tema"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+      </header>
+
+      <div style={{ display: 'flex', flexGrow: 1 }}>
+        {/* Sidebar Navigation */}
+        <Sidebar 
+          currentPage={currentPage} 
+          setCurrentPage={setCurrentPage} 
+          theme={theme}
+          toggleTheme={toggleTheme}
+          user={user}
+          handleLogout={handleLogout}
+          showInstallBtn={!window.matchMedia('(display-mode: standalone)').matches}
+          handleInstallApp={() => setIsInstallModalOpen(true)}
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          onOpenSearch={() => setIsCommandPaletteOpen(true)}
+        />
+
+        {/* Pages Container */}
+        <main style={{ flexGrow: 1, backgroundColor: 'var(--bg-app)', transition: 'background-color 0.3s' }}>
+          <Suspense fallback={loadingFallback}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/termos" element={<Termos onPrintTerm={handlePrintTerm} onPrintRelatorio={handlePrintRelatorio} />} />
+              <Route path="/equipamentos" element={<Equipamentos />} />
+              <Route path="/colaboradores" element={<Colaboradores onPrintConsolidated={handlePrintConsolidated} onPrintHistorico={handlePrintHistorico} />} />
+              <Route path="/consertos" element={<Consertos onPrintOS={handlePrintOS} onPrintRelatorio={handlePrintRelatorio} />} />
+              <Route path="/importador" element={<Importador />} />
+            </Routes>
+          </Suspense>
+        </main>
+      </div>
+
+      {/* Global Command Palette (Ctrl+K) */}
+      <CommandPalette 
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+      />
 
       {/* PWA Installation Modal */}
       {isInstallModalOpen && (
@@ -236,6 +327,7 @@ const App = () => {
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.65)',
           backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
           zIndex: 9999,
           display: 'flex',
           justifyContent: 'center',
@@ -243,16 +335,6 @@ const App = () => {
           padding: '20px',
           animation: 'fadeIn 0.3s ease'
         }}>
-          <style>{`
-            @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-            @keyframes slideUp {
-              from { transform: translateY(20px); opacity: 0; }
-              to { transform: translateY(0); opacity: 1; }
-            }
-          `}</style>
           <div style={{
             backgroundColor: 'var(--bg-app)',
             border: '1px solid var(--border-card)',

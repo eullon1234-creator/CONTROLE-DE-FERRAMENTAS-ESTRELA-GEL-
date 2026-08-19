@@ -75,7 +75,7 @@ self.addEventListener('fetch', (e) => {
           }
           return networkResponse;
         })
-        .catch((error) => {
+        .catch(() => {
           // If offline/network fails and it's a page navigation, return index.html fallback
           if (e.request.mode === 'navigate') {
             return caches.match('./index.html').then((indexFallback) => {

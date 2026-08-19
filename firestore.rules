@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Regra base: Requer usuário autenticado para qualquer operação
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Permite leitura e escrita apenas para operadores autenticados
+    match /ferramentas_equipamentos/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /ferramentas_colaboradores/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /ferramentas_termos/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /ferramentas_os_conserto/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /ferramentas_audit_log/{document=**} {
+      allow read, create: if isAuthenticated();
+      // Não permite deletar ou alterar registros de auditoria
+      allow update, delete: if false;
+    }
+  }
+}

@@ -18,18 +18,20 @@ import {
   Search, 
   Check, 
   Printer, 
-  X,
-  PenTool,
-  CheckCircle,
-  XCircle,
-  Download
+  X, 
+  PenTool, 
+  Download 
 } from 'lucide-react';
 import SignaturePad from '../components/SignaturePad';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
 import { exportActiveToolsExcel } from '../utils/exportExcel';
 import { classifyGroup } from '../utils/classifyGroup';
+import { useToast } from '../components/Toast';
+import EmptyState from '../components/EmptyState';
+import { logAuditAction } from '../utils/auditLogger';
 
 const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
+  const toast = useToast();
   const [termos, setTermos] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
@@ -42,7 +44,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   const handlePrintActiveTools = () => {
     const activeItems = termos.filter(t => t.status === 'ATIVO');
     if (activeItems.length === 0) {
-      alert('Nenhum empréstimo ativo para imprimir.');
+      toast.warning('Nenhum empréstimo ativo para imprimir.');
       return;
     }
     const sortedActive = [...activeItems].sort((a, b) => 
@@ -54,7 +56,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   const handleExportActiveTools = () => {
     const activeItems = termos.filter(t => t.status === 'ATIVO');
     if (activeItems.length === 0) {
-      alert('Nenhum empréstimo ativo para exportar.');
+      toast.warning('Nenhum empréstimo ativo para exportar.');
       return;
     }
     const sortedActive = [...activeItems].sort((a, b) => 
@@ -94,9 +96,6 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   const [collabSearch, setCollabSearch] = useState('');
   const [eqSearch, setEqSearch] = useState('');
 
-  // Toast State
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
   // Form State
   const [formData, setFormData] = useState({
     colaboradorId: '',
@@ -125,10 +124,9 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   };
 
   const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }));
-    }, 4000);
+    if (type === 'error') toast.error(message);
+    else if (type === 'warning') toast.warning(message);
+    else toast.success(message);
   };
 
   useEffect(() => {
@@ -372,8 +370,10 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
         criadoEm: Timestamp.now()
       };
 
+      const termRef = doc(collection(db, COLLECTIONS.TERMOS));
+      const newTermId = termRef.id;
+
       await runTransaction(db, async (transaction) => {
-        const termRef = doc(collection(db, COLLECTIONS.TERMOS));
         const collabRef = doc(db, COLLECTIONS.COLABORADORES, finalCollabId);
 
         // 1. All reads must be done first!
@@ -433,6 +433,18 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
             totalItensAtivos: currentAtivos + Number(formData.quantidade),
             atualizadoEm: Timestamp.now()
           });
+        }
+      });
+
+      logAuditAction({
+        action: 'CRIAR_TERMO',
+        entityType: 'TERMO',
+        entityId: newTermId,
+        details: {
+          colaborador: formData.colaboradorNome,
+          material: formData.descricaoMaterial,
+          tag: formData.tag || formData.codEquipamento,
+          quantidade: formData.quantidade
         }
       });
 
@@ -559,6 +571,18 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
           }
         }
       });
+
+      logAuditAction({
+        action: `DEVOLUCAO_${newStatus.replace(/\s+/g, '_')}`,
+        entityType: 'TERMO',
+        entityId: term.id,
+        details: {
+          colaborador: term.colaboradorNome,
+          material: term.descricaoMaterial,
+          status: newStatus
+        }
+      });
+
       showToast(`Item marcado como ${newStatus} com sucesso!`);
     } catch (err) {
       console.error(err);
@@ -686,35 +710,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   });
 
   return (
-    <div style={{ padding: '40px 40px 40px 320px', minHeight: '100vh' }}>
-      
-      {/* Toast Notification */}
-      {toast.show && (
-        <div style={{
-          position: 'fixed',
-          top: '24px',
-          right: '24px',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '16px 24px',
-          borderRadius: '10px',
-          backgroundColor: toast.type === 'success' ? '#064e3b' : '#7f1d1d',
-          color: '#ffffff',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.3)',
-          border: `1px solid ${toast.type === 'success' ? '#059669' : '#dc2626'}`,
-          animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-          transform: 'translateX(0)',
-          fontFamily: 'var(--font-heading)',
-          fontWeight: 600,
-          fontSize: '0.9rem'
-        }}>
-          {toast.type === 'success' ? <CheckCircle size={20} style={{ color: '#34d399' }} /> : <XCircle size={20} style={{ color: '#f87171' }} />}
-          {toast.message}
-        </div>
-      )}
-
+    <div className="page-container">
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
@@ -1069,9 +1065,22 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
             )}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-            Nenhum empréstimo encontrado para os filtros selecionados.
-          </div>
+          <EmptyState
+            title="Nenhum termo encontrado"
+            description="Não encontramos empréstimos para os filtros ou pesquisa selecionados."
+            actionLabel="Limpar Filtros"
+            onAction={() => {
+              setSearch('');
+              setActiveFilters({
+                colaboradorNome: { selected: [], condition: { type: '', value: '' } },
+                descricaoMaterial: { selected: [], condition: { type: '', value: '' } },
+                tag: { selected: [], condition: { type: '', value: '' } },
+                status: { selected: [], condition: { type: '', value: '' } },
+                quantidade: { selected: [], condition: { type: '', value: '' } },
+                dateStr: { selected: [], condition: { type: '', value: '' } }
+              });
+            }}
+          />
         )}
       </div>
 

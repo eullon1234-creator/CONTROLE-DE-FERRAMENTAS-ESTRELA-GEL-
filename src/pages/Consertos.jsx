@@ -19,15 +19,18 @@ import {
   Search, 
   X, 
   Trash2,
-  CheckCircle,
-  XCircle,
-  Edit3
+  Edit3,
+  Printer,
+  Download
 } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
-import { Printer, Download } from 'lucide-react';
 import { exportDamagedToolsExcel, exportOSDetailExcel } from '../utils/exportExcel';
+import { useToast } from '../components/Toast';
+import EmptyState from '../components/EmptyState';
+import { logAuditAction } from '../utils/auditLogger';
 
 const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
+  const toast = useToast();
   const [osList, setOsList] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
@@ -45,7 +48,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
       return statusNorm === 'enviado' || statusNorm === 'em conserto';
     });
     if (damagedOSList.length === 0) {
-      alert('Nenhuma ferramenta danificada em manutenção pendente para imprimir.');
+      toast.warning('Nenhuma ferramenta danificada em manutenção pendente para imprimir.');
       return;
     }
     const sortedDamaged = [...damagedOSList].sort((a, b) => 
@@ -67,7 +70,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
       return statusNorm === 'enviado' || statusNorm === 'em conserto';
     });
     if (damagedOSList.length === 0) {
-      alert('Nenhuma ferramenta danificada em manutenção pendente para exportar.');
+      toast.warning('Nenhuma ferramenta danificada em manutenção pendente para exportar.');
       return;
     }
     const sortedDamaged = [...damagedOSList].sort((a, b) => 
@@ -78,7 +81,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
 
   const handleExportDetailedOS = () => {
     if (osList.length === 0) {
-      alert('Nenhuma Ordem de Serviço cadastrada para exportar.');
+      toast.warning('Nenhuma Ordem de Serviço cadastrada para exportar.');
       return;
     }
     exportOSDetailExcel(osList, colaboradores);
@@ -115,9 +118,6 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     colaboradorNome: ''
   });
 
-  // Toast Notification
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
   // Form States
   const [addFormData, setAddFormData] = useState({
     nOS: '',
@@ -140,10 +140,9 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
   });
 
   const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }));
-    }, 4000);
+    if (type === 'error') toast.error(message);
+    else if (type === 'warning') toast.warning(message);
+    else toast.success(message);
   };
 
   useEffect(() => {
@@ -509,6 +508,12 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
       } else {
         showToast(isDiscarded ? 'Ferramenta descartada com sucesso!' : 'Retorno de conserto registrado com sucesso!');
       }
+      logAuditAction({
+        action: isDiscarded ? 'DESCARTAR_OS' : 'RETORNO_OS',
+        entityType: 'OS_CONSERTO',
+        entityId: selectedOs.id,
+        details: { nOS: selectedOs.nOS, tag: selectedOs.tag, ...returnFormData }
+      });
       setIsReturnModalOpen(false);
       setSelectedOs(null);
       setReturnFormData({
@@ -706,6 +711,13 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
         }
       }
 
+      logAuditAction({
+        action: 'EDITAR_OS',
+        entityType: 'OS_CONSERTO',
+        entityId: selectedOsForEdit.id,
+        details: editFormData
+      });
+
       showToast('Ordem de Serviço atualizada com sucesso!');
       setIsEditModalOpen(false);
       setSelectedOsForEdit(null);
@@ -722,6 +734,13 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
     try {
       // 1. Delete OS document
       await deleteDoc(doc(db, COLLECTIONS.OS_CONSERTO, osItem.id));
+
+      logAuditAction({
+        action: 'EXCLUIR_OS',
+        entityType: 'OS_CONSERTO',
+        entityId: osItem.id,
+        details: osItem
+      });
 
       // 2. Marca equipamento como "Disponível" se estiver em manutenção
       if (osItem.tag) {
@@ -886,35 +905,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
   const activeOSCount = osList.filter(o => o.status.toLowerCase() === 'enviado' || o.status.toLowerCase() === 'em conserto').length;
 
   return (
-    <div style={{ padding: '40px 40px 40px 320px', minHeight: '100vh' }}>
-      
-      {/* Toast Notification */}
-      {toast.show && (
-        <div style={{
-          position: 'fixed',
-          top: '24px',
-          right: '24px',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '16px 24px',
-          borderRadius: '10px',
-          backgroundColor: toast.type === 'success' ? '#064e3b' : '#7f1d1d',
-          color: '#ffffff',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.3)',
-          border: `1px solid ${toast.type === 'success' ? '#059669' : '#dc2626'}`,
-          animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-          transform: 'translateX(0)',
-          fontFamily: 'var(--font-heading)',
-          fontWeight: 600,
-          fontSize: '0.9rem'
-        }}>
-          {toast.type === 'success' ? <CheckCircle size={20} style={{ color: '#34d399' }} /> : <XCircle size={20} style={{ color: '#f87171' }} />}
-          {toast.message}
-        </div>
-      )}
-
+    <div className="page-container">
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
@@ -1283,9 +1274,28 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
             )}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-            Nenhuma Ordem de Serviço encontrada para os filtros selecionados.
-          </div>
+          <EmptyState
+            title="Nenhuma Ordem de Serviço encontrada"
+            description="Não encontramos nenhuma OS correspondente aos filtros ou busca aplicados."
+            actionLabel="Limpar Filtros"
+            onAction={() => {
+              setSearch('');
+              setFilterStatusTab('TODOS');
+              setActiveFilters({
+                nOS: { selected: [], condition: { type: '', value: '' } },
+                tag: { selected: [], condition: { type: '', value: '' } },
+                descricao: { selected: [], condition: { type: '', value: '' } },
+                status: { selected: [], condition: { type: '', value: '' } },
+                colaboradorNome: { selected: [], condition: { type: '', value: '' } },
+                dateOSStr: { selected: [], condition: { type: '', value: '' } },
+                dateEnvioStr: { selected: [], condition: { type: '', value: '' } },
+                dateRetornoStr: { selected: [], condition: { type: '', value: '' } },
+                diasEmConserto: { selected: [], condition: { type: '', value: '' } },
+                valorOrcamento: { selected: [], condition: { type: '', value: '' } },
+                observacao: { selected: [], condition: { type: '', value: '' } }
+              });
+            }}
+          />
         )}
       </div>
 

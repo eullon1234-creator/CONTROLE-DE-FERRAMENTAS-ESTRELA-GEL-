@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { Search, User, Wrench, ChevronRight, FileText, Printer, ArrowLeft } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
+import EmptyState from '../components/EmptyState';
 
 const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
   const [colaboradores, setColaboradores] = useState([]);
@@ -166,7 +167,7 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
 
   if (selectedCollab) {
     return (
-      <div style={{ padding: '40px 40px 40px 320px', minHeight: '100vh' }}>
+      <div className="page-container">
         {/* Back navigation */}
         <button 
           onClick={() => setSelectedCollab(null)} 
@@ -177,18 +178,18 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
         </button>
 
         {/* Profile Card Header */}
-        <div className="glass-panel" style={{ padding: '30px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
-              <User size={30} />
+        <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', flexShrink: 0 }}>
+              <User size={28} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.8rem', color: 'var(--text-primary)', margin: 0 }}>{selectedCollab.nome}</h1>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{selectedCollab.funcao}</span>
+              <h1 style={{ fontSize: '1.6rem', color: 'var(--text-primary)', margin: 0 }}>{selectedCollab.nome}</h1>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{selectedCollab.funcao}</span>
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button 
               onClick={() => {
                 if (!onPrintHistorico) return;
@@ -217,11 +218,11 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
         </div>
 
         {/* Details Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
           
           {/* Active Items */}
-          <div className="glass-panel" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <h3 style={{ fontSize: '1.05rem', marginBottom: '16px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Wrench size={18} style={{ color: 'var(--color-success)' }} /> Ferramentas Atuais ({activeItems.length})
             </h3>
             
@@ -262,15 +263,15 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
           </div>
 
           {/* History */}
-          <div className="glass-panel" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <h3 style={{ fontSize: '1.05rem', marginBottom: '16px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FileText size={18} style={{ color: 'var(--text-secondary)' }} /> Histórico de Devoluções ({pastItems.length})
             </h3>
             
             {loadingDetails ? (
               <div style={{ color: 'var(--text-muted)' }}>Carregando histórico...</div>
             ) : pastItems.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
                 {pastItems.map(item => (
                   <div key={item.id} style={{ padding: '12px', border: '1px solid var(--border-card)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
@@ -298,13 +299,13 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
   }
 
   return (
-    <div style={{ padding: '40px 40px 40px 320px', minHeight: '100vh' }}>
+    <div className="page-container">
       {/* Header */}
       <div>
-        <span style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: '0.82rem', color: 'var(--color-primary-light)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
           Registros Pessoais
         </span>
-        <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px', marginBottom: '30px' }}>Colaboradores</h1>
+        <h1 style={{ fontSize: '2rem', color: 'var(--text-primary)', marginTop: '2px', marginBottom: '24px' }}>Colaboradores</h1>
       </div>
 
       {/* Search Toolbar */}
@@ -457,9 +458,22 @@ const Colaboradores = ({ onPrintConsolidated, onPrintHistorico }) => {
           </div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-            Nenhum colaborador encontrado para os filtros.
-          </div>
+          <EmptyState
+            title="Nenhum colaborador encontrado"
+            description="Nenhum colaborador corresponde aos filtros ou à busca atual."
+            actionLabel="Limpar Filtros"
+            onAction={() => {
+              setSearch('');
+              setActiveFilters({
+                nome: { selected: [], condition: { type: '', value: '' } },
+                cpf: { selected: [], condition: { type: '', value: '' } },
+                funcao: { selected: [], condition: { type: '', value: '' } },
+                empresa: { selected: [], condition: { type: '', value: '' } },
+                totalItensAtivos: { selected: [], condition: { type: '', value: '' } },
+                totalItensDevolvidos: { selected: [], condition: { type: '', value: '' } }
+              });
+            }}
+          />
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useState, useCallback, useMemo, createContext, useContext } from 'react';
 
 const ToastContext = createContext(null);
 
@@ -65,20 +65,12 @@ export const ToastProvider = ({ children }) => {
     }, 300);
   }, []);
 
-  const toast = useCallback({
+  const toastApi = useMemo(() => ({
     success: (msg, dur) => addToast(msg, 'success', dur),
     error: (msg, dur) => addToast(msg, 'error', dur),
     warning: (msg, dur) => addToast(msg, 'warning', dur),
     info: (msg, dur) => addToast(msg, 'info', dur),
-  }, [addToast]);
-
-  // Fix: useCallback can't take an object, use useMemo-like pattern
-  const toastApi = {
-    success: (msg, dur) => addToast(msg, 'success', dur),
-    error: (msg, dur) => addToast(msg, 'error', dur),
-    warning: (msg, dur) => addToast(msg, 'warning', dur),
-    info: (msg, dur) => addToast(msg, 'info', dur),
-  };
+  }), [addToast]);
 
   return (
     <ToastContext.Provider value={toastApi}>
@@ -164,19 +156,11 @@ export const ToastProvider = ({ children }) => {
 
 /**
  * Hook to use toast notifications anywhere in the component tree.
- * @returns {{ success: Function, error: Function, warning: Function, info: Function }}
- * 
- * @example
- * const toast = useToast();
- * toast.success('Item salvo com sucesso!');
- * toast.error('Erro ao deletar item.');
- * toast.warning('Atenção: item já cautelado.');
- * toast.info('Relatório exportado.');
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const useToast = () => {
   const ctx = useContext(ToastContext);
   if (!ctx) {
-    // Fallback if used outside provider — won't crash the app
     return {
       success: (msg) => console.log('[Toast:success]', msg),
       error: (msg) => console.error('[Toast:error]', msg),

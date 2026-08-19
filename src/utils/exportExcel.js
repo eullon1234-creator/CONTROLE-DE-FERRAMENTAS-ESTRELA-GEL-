@@ -548,7 +548,7 @@ export async function exportFullReport({ termos, equipamentos, colaboradores, os
     
   } catch (error) {
     console.error('Erro ao exportar planilha:', error);
-    alert('Ocorreu um erro ao gerar a planilha. Por favor, tente novamente ou verifique se você está conectado à internet.');
+    throw error;
   }
 }
 
@@ -647,7 +647,7 @@ export async function exportActiveToolsExcel(termosAtivos) {
 
   } catch (error) {
     console.error('Erro ao exportar planilha de ferramentas ativas:', error);
-    alert('Ocorreu um erro ao gerar a planilha de ferramentas ativas. Verifique sua conexão com a internet.');
+    throw error;
   }
 }
 
@@ -753,7 +753,7 @@ export async function exportDamagedToolsExcel(osDanificadas, colaboradores) {
 
   } catch (error) {
     console.error('Erro ao exportar planilha de ferramentas danificadas:', error);
-    alert('Ocorreu um erro ao gerar a planilha de ferramentas danificadas. Verifique sua conexão com a internet.');
+    throw error;
   }
 }
 
@@ -997,6 +997,6 @@ export async function exportOSDetailExcel(osList, colaboradores) {
 
   } catch (error) {
     console.error('Erro ao exportar planilha detalhada de OS:', error);
-    alert('Ocorreu um erro ao gerar a planilha detalhada de OS. Verifique sua conexão com a internet.');
+    throw error;
   }
 }
