@@ -1,8 +1,9 @@
-const CACHE_NAME = 'gel-ferramentaria-v4';
+const CACHE_NAME = 'gel-ferramentaria-v5';
 const ASSETS = [
   './',
   './index.html',
   './logo.png',
+  './bg-industrial.jpg',
   './favicon.svg',
   './manifest.json'
 ];

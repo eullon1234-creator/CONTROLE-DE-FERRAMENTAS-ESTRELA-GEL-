@@ -260,12 +260,12 @@ const Dashboard = () => {
           {alerts.delayedOS.length > 0 && (
             <div 
               onClick={() => navigate('/consertos')}
-              className="glass-panel"
+              className="glass-panel pulse-warning"
               style={{
                 padding: '16px 20px',
                 borderRadius: '12px',
-                backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
+                backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -278,7 +278,7 @@ const Dashboard = () => {
                   width: '40px',
                   height: '40px',
                   borderRadius: '8px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -303,12 +303,12 @@ const Dashboard = () => {
           {alerts.prolongedTerms.length > 0 && (
             <div 
               onClick={() => navigate('/termos')}
-              className="glass-panel"
+              className="glass-panel pulse-urgent"
               style={{
                 padding: '16px 20px',
                 borderRadius: '12px',
-                backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                border: '1px solid rgba(59, 130, 246, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -321,7 +321,7 @@ const Dashboard = () => {
                   width: '40px',
                   height: '40px',
                   borderRadius: '8px',
-                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -347,7 +347,7 @@ const Dashboard = () => {
 
       {/* Metrics Row */}
       <div className="dashboard-grid">
-        <div className="glass-panel card-stat">
+        <div className="glass-panel card-stat stagger-1">
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Termos Ativos</span>
             <h2 style={{ fontSize: '1.85rem', marginTop: '6px', color: 'var(--text-primary)' }}>{stats.ativos}</h2>
@@ -357,7 +357,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="glass-panel card-stat">
+        <div className="glass-panel card-stat stagger-2">
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Itens Devolvidos</span>
             <h2 style={{ fontSize: '1.85rem', marginTop: '6px', color: 'var(--text-primary)' }}>{stats.devolvidos}</h2>
@@ -367,7 +367,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="glass-panel card-stat">
+        <div className="glass-panel card-stat stagger-3">
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Em Conserto</span>
             <h2 style={{ fontSize: '1.85rem', marginTop: '6px', color: 'var(--text-primary)' }}>{stats.emConcerto}</h2>
@@ -377,7 +377,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="glass-panel card-stat">
+        <div className="glass-panel card-stat stagger-4">
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Catálogo de Itens</span>
             <h2 style={{ fontSize: '1.85rem', marginTop: '6px', color: 'var(--text-primary)' }}>{stats.totalEquipamentos}</h2>
