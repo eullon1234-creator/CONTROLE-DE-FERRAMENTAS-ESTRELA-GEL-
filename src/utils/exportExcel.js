@@ -574,6 +574,7 @@ export async function exportActiveToolsExcel(termosAtivos) {
       'Descrição da Ferramenta',
       'Colaborador (Quem está com)',
       'Função / Cargo',
+      'Total Ferramentas da Pessoa',
       'Data Empréstimo',
       'Assinatura / Visto'
     ];
@@ -588,6 +589,7 @@ export async function exportActiveToolsExcel(termosAtivos) {
         t.descricaoMaterial || '-',
         t.colaboradorNome || '-',
         t.colaboradorFuncao || '-',
+        t.totalFerramentasColaborador || t.quantidade || 1,
         parseDateValue(t.dateObj || t.dataEntrada),
         ''
       ]);
@@ -595,8 +597,9 @@ export async function exportActiveToolsExcel(termosAtivos) {
       styleDataRow(row, i);
       row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
       row.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell(6).numFmt = 'dd/mm/yyyy';
       row.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(7).numFmt = 'dd/mm/yyyy';
+      row.getCell(7).alignment = { vertical: 'middle', horizontal: 'center' };
     });
 
     // Adicionar 10 linhas em branco com bordas para preenchimento manual
@@ -604,6 +607,7 @@ export async function exportActiveToolsExcel(termosAtivos) {
     for (let idx = 0; idx < 10; idx++) {
       const row = sheet.addRow([
         dataRowsCount + idx + 1,
+        '',
         '',
         '',
         '',
@@ -626,7 +630,7 @@ export async function exportActiveToolsExcel(termosAtivos) {
       });
     }
 
-    autoWidth(sheet, [10, 18, 30, 25, 20, 18, 20]);
+    autoWidth(sheet, [8, 18, 32, 28, 20, 18, 16, 22]);
 
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;

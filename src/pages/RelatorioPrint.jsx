@@ -115,7 +115,13 @@ const RelatorioPrint = ({ type, items, onBack }) => {
         {/* Info text */}
         <div style={{ fontSize: '10px', color: '#374151', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
           <span>* Este relatório apresenta a relação atual de ferramentas registradas no sistema de controle.</span>
-          <span>Total de itens listados: <strong>{items.length}</strong></span>
+          <span>
+            {isAtivas ? (
+              <>Colaboradores: <strong>{new Set(items.map(i => i.colaboradorNome || 'Não informado')).size}</strong> | Total de ferramentas: <strong>{items.length}</strong></>
+            ) : (
+              <>Total de itens listados: <strong>{items.length}</strong></>
+            )}
+          </span>
         </div>
 
         {/* Equipment Table */}
@@ -127,13 +133,16 @@ const RelatorioPrint = ({ type, items, onBack }) => {
         }}>
           <thead>
             <tr style={{ backgroundColor: '#f3f4f6' }}>
-              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '40px' }}>Nº</th>
-              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '130px' }}>TAG / Código</th>
+              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '35px' }}>Nº</th>
+              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '110px' }}>TAG / Código</th>
               <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '220px' }}>Descrição da Ferramenta</th>
-              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '200px' }}>Colaborador Responsável</th>
-              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '150px' }}>Função / Cargo</th>
-              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '90px' }}>{isAtivas ? 'Empréstimo' : 'Data Envio'}</th>
-              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '130px' }}>Visto / Assinatura</th>
+              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '190px' }}>Colaborador Responsável</th>
+              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '130px' }}>Função / Cargo</th>
+              {isAtivas && (
+                <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '85px' }}>Qtd no Nome</th>
+              )}
+              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '85px' }}>{isAtivas ? 'Empréstimo' : 'Data Envio'}</th>
+              <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', width: '120px' }}>Visto / Assinatura</th>
             </tr>
           </thead>
           <tbody>
@@ -158,6 +167,11 @@ const RelatorioPrint = ({ type, items, onBack }) => {
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '6px 8px' }}>{item.colaboradorNome || '-'}</td>
                   <td style={{ border: '1px solid #000000', padding: '6px 8px' }}>{item.colaboradorFuncao || '-'}</td>
+                  {isAtivas && (
+                    <td style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>
+                      {item.totalFerramentasColaborador ? `${item.totalFerramentasColaborador} un.` : (item.quantidade ? `${item.quantidade} un.` : '1 un.')}
+                    </td>
+                  )}
                   <td style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center' }}>{dateStr}</td>
                   <td style={{ border: '1px solid #000000', padding: '6px 8px', backgroundColor: '#fafafa' }}></td>
                 </tr>
@@ -174,6 +188,7 @@ const RelatorioPrint = ({ type, items, onBack }) => {
                   <td style={{ border: '1px solid #000000', padding: '6px 8px' }}></td>
                   <td style={{ border: '1px solid #000000', padding: '6px 8px' }}></td>
                   <td style={{ border: '1px solid #000000', padding: '6px 8px' }}></td>
+                  {isAtivas && <td style={{ border: '1px solid #000000', padding: '6px 8px' }}></td>}
                   <td style={{ border: '1px solid #000000', padding: '6px 8px' }}></td>
                   <td style={{ border: '1px solid #000000', padding: '6px 8px' }}></td>
                 </tr>

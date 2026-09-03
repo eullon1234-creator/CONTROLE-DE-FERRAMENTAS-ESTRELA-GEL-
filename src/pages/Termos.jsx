@@ -20,7 +20,10 @@ import {
   Printer, 
   X, 
   PenTool, 
-  Download 
+  Download,
+  CheckSquare,
+  Square,
+  Wrench
 } from 'lucide-react';
 import SignaturePad from '../components/SignaturePad';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
@@ -41,28 +44,151 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
   const [limitCount, setLimitCount] = useState(200);
   const [hasMore, setHasMore] = useState(false);
 
-  const handlePrintActiveTools = () => {
-    const activeItems = termos.filter(t => t.status === 'ATIVO');
-    if (activeItems.length === 0) {
-      toast.warning('Nenhum empréstimo ativo para imprimir.');
-      return;
+  // Modal de Seleção de Colaboradores para Imprimir / Exportar Ferramentas Ativas
+  const [isPrintActiveModalOpen, setIsPrintActiveModalOpen] = useState(false);
+  const [loadingActiveModal, setLoadingActiveModal] = useState(false);
+  const [activeCollabsList, setActiveCollabsList] = useState([]);
+  const [selectedCollabNames, setSelectedCollabNames] = useState(new Set());
+  const [collabModalSearch, setCollabModalSearch] = useState('');
+
+  const openActiveToolsModal = async () => {
+    setLoadingActiveModal(true);
+    setIsPrintActiveModalOpen(true);
+    setCollabModalSearch('');
+
+    try {
+      // Buscar todos os termos ativos diretamente do Firestore para garantir integridade total sem truncamento por paginação
+      const qActive = query(collection(db, COLLECTIONS.TERMOS), where('status', '==', 'ATIVO'));
+      const snap = await getDocs(qActive);
+      const items = [];
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        items.push({
+          id: docSnap.id,
+          ...data,
+          dateObj: data.dataEntrada?.toDate ? data.dataEntrada.toDate() : (data.dataEntrada ? new Date(data.dataEntrada) : new Date(0))
+        });
+      });
+
+      if (items.length === 0) {
+        toast.warning('Nenhum empréstimo ativo encontrado no sistema.');
+        setIsPrintActiveModalOpen(false);
+        setLoadingActiveModal(false);
+        return;
+      }
+
+      // Calcular o total de ferramentas por colaborador
+      const toolCountByCollab = {};
+      items.forEach(item => {
+        const name = (item.colaboradorNome || 'Sem Nome').trim();
+        const qty = Number(item.quantidade) || 1;
+        toolCountByCollab[name] = (toolCountByCollab[name] || 0) + qty;
+      });
+
+      // Agrupar ferramentas por colaborador
+      const collabMap = new Map();
+      items.forEach(item => {
+        const name = (item.colaboradorNome || 'Sem Nome').trim();
+        if (!collabMap.has(name)) {
+          collabMap.set(name, {
+            nome: name,
+            funcao: item.colaboradorFuncao || '-',
+            totalFerramentas: toolCountByCollab[name] || 0,
+            itensCount: 0,
+            items: []
+          });
+        }
+        const entry = collabMap.get(name);
+        entry.itensCount += 1;
+        entry.items.push({
+          ...item,
+          totalFerramentasColaborador: toolCountByCollab[name] || 0
+        });
+      });
+
+      // Ordenar colaboradores em ordem alfabética (A-Z)
+      const sortedCollabs = Array.from(collabMap.values()).sort((a, b) => 
+        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
+      );
+
+      setActiveCollabsList(sortedCollabs);
+      // Por padrão, marcar todos os colaboradores
+      setSelectedCollabNames(new Set(sortedCollabs.map(c => c.nome)));
+    } catch (err) {
+      console.error('Erro ao carregar ferramentas ativas:', err);
+      toast.error('Erro ao carregar lista de ferramentas ativas.');
+    } finally {
+      setLoadingActiveModal(false);
     }
-    const sortedActive = [...activeItems].sort((a, b) => 
-      (a.tag || a.codEquipamento || '').localeCompare(b.tag || b.codEquipamento || '')
-    );
-    onPrintRelatorio('ativas', sortedActive);
   };
 
-  const handleExportActiveTools = () => {
-    const activeItems = termos.filter(t => t.status === 'ATIVO');
-    if (activeItems.length === 0) {
-      toast.warning('Nenhum empréstimo ativo para exportar.');
+  const handleToggleCollab = (name) => {
+    setSelectedCollabNames(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const handleSelectAllCollabs = () => {
+    setSelectedCollabNames(new Set(activeCollabsList.map(c => c.nome)));
+  };
+
+  const handleDeselectAllCollabs = () => {
+    setSelectedCollabNames(new Set());
+  };
+
+  const getSelectedActiveTools = () => {
+    if (selectedCollabNames.size === 0) return [];
+    
+    // Filtrar colaboradores selecionados
+    const selectedCollabs = activeCollabsList.filter(c => selectedCollabNames.has(c.nome));
+    
+    // Reunir todas as ferramentas
+    const allSelectedItems = [];
+    selectedCollabs.forEach(c => {
+      allSelectedItems.push(...c.items);
+    });
+
+    // Ordenar por ordem alfabética do nome do colaborador (A-Z) e secundariamente por descrição/tag
+    allSelectedItems.sort((a, b) => {
+      const nameA = (a.colaboradorNome || '').trim();
+      const nameB = (b.colaboradorNome || '').trim();
+      const cmp = nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+      if (cmp !== 0) return cmp;
+      const descA = (a.descricaoMaterial || a.tag || '').trim();
+      const descB = (b.descricaoMaterial || b.tag || '').trim();
+      return descA.localeCompare(descB, 'pt-BR', { sensitivity: 'base' });
+    });
+
+    return allSelectedItems;
+  };
+
+  const handleConfirmPrintActive = () => {
+    const itemsToPrint = getSelectedActiveTools();
+    if (itemsToPrint.length === 0) {
+      toast.warning('Selecione pelo menos um colaborador para imprimir.');
       return;
     }
-    const sortedActive = [...activeItems].sort((a, b) => 
-      (a.tag || a.codEquipamento || '').localeCompare(b.tag || b.codEquipamento || '')
-    );
-    exportActiveToolsExcel(sortedActive);
+    setIsPrintActiveModalOpen(false);
+    onPrintRelatorio('ativas', itemsToPrint);
+  };
+
+  const handleConfirmExportActive = async () => {
+    const itemsToExport = getSelectedActiveTools();
+    if (itemsToExport.length === 0) {
+      toast.warning('Selecione pelo menos um colaborador para exportar.');
+      return;
+    }
+    try {
+      await exportActiveToolsExcel(itemsToExport);
+      toast.success('Planilha de ferramentas ativas gerada com sucesso!');
+      setIsPrintActiveModalOpen(false);
+    } catch (err) {
+      console.error('Erro ao exportar planilha:', err);
+      toast.error('Erro ao gerar planilha Excel.');
+    }
   };
   
   const [activeFilters, setActiveFilters] = useState({
@@ -722,19 +848,19 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button 
-            onClick={handlePrintActiveTools} 
+            onClick={openActiveToolsModal} 
             className="btn btn-secondary" 
             style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
-            title="Imprimir relatório das ferramentas ativas em formato paisagem com linhas vazias no final"
+            title="Imprimir relatório das ferramentas ativas em formato paisagem com filtro de colaboradores e ordem alfabética"
           >
             <Printer size={18} /> Imprimir Ativas (Paisagem)
           </button>
           
           <button 
-            onClick={handleExportActiveTools} 
+            onClick={openActiveToolsModal} 
             className="btn btn-secondary" 
             style={{ padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
-            title="Exportar planilha Excel das ferramentas ativas com linhas vazias no final"
+            title="Exportar planilha Excel das ferramentas ativas com filtro de colaboradores e ordem alfabética"
           >
             <Download size={18} /> Planilha Ativas
           </button>
@@ -1403,6 +1529,238 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                 Fechar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Selecionar Colaboradores para Imprimir / Baixar Ferramentas Ativas */}
+      {isPrintActiveModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(3, 7, 18, 0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 999,
+          padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%',
+            maxWidth: '700px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'var(--bg-app)',
+            padding: '24px 28px',
+            position: 'relative',
+            borderRadius: '16px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-primary-light)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  Relatório de Ferramentas Ativas
+                </span>
+                <h2 style={{ fontSize: '1.35rem', color: 'var(--text-primary)', marginTop: '2px', marginBottom: '4px' }}>
+                  Selecionar Pessoas para Imprimir ou Baixar
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Marque os colaboradores desejados. O relatório e a planilha serão gerados em <strong>ordem alfabética</strong> com a quantidade de ferramentas no nome de cada um.
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsPrintActiveModalOpen(false)}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+                title="Fechar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {loadingActiveModal ? (
+              <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <div style={{ marginBottom: '8px', fontWeight: 600 }}>Carregando ferramentas ativas...</div>
+                <div style={{ fontSize: '0.82rem' }}>Consultando banco de dados da UHE Estrela</div>
+              </div>
+            ) : (
+              <>
+                {/* Search & Selection Controls */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '14px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Filtrar por nome do colaborador ou função..."
+                      value={collabModalSearch}
+                      onChange={(e) => setCollabModalSearch(e.target.value)}
+                      style={{ paddingLeft: '36px', height: '40px', fontSize: '0.9rem' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllCollabs}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <CheckSquare size={14} /> Marcar Todos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllCollabs}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Square size={14} /> Desmarcar Todos
+                      </button>
+                    </div>
+
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      <strong>{selectedCollabNames.size}</strong> de <strong>{activeCollabsList.length}</strong> pessoas marcadas
+                      {selectedCollabNames.size > 0 && (
+                        <span style={{ marginLeft: '6px', color: 'var(--color-primary-light)', fontWeight: 600 }}>
+                          ({activeCollabsList.filter(c => selectedCollabNames.has(c.nome)).reduce((acc, c) => acc + c.totalFerramentas, 0)} ferramentas)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Collaborators List (Scrollable) */}
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  border: '1px solid var(--border-card)',
+                  borderRadius: '10px',
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                  minHeight: '220px',
+                  maxHeight: '380px'
+                }}>
+                  {activeCollabsList
+                    .filter(c => {
+                      if (!collabModalSearch) return true;
+                      const term = collabModalSearch.toLowerCase();
+                      return c.nome.toLowerCase().includes(term) || (c.funcao && c.funcao.toLowerCase().includes(term));
+                    })
+                    .map((collab) => {
+                      const isSelected = selectedCollabNames.has(collab.nome);
+                      return (
+                        <div
+                          key={collab.nome}
+                          onClick={() => handleToggleCollab(collab.nome)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg-card)',
+                            border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--border-card)',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // handled by row onClick
+                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.92rem', color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                                {collab.nome}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {collab.funcao || 'Função não informada'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(100, 116, 139, 0.15)',
+                            color: isSelected ? 'var(--color-primary-light)' : 'var(--text-muted)',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            <Wrench size={12} />
+                            {collab.totalFerramentas} {collab.totalFerramentas === 1 ? 'ferramenta' : 'ferramentas'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* Modal Footer Actions */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-card)', flexWrap: 'wrap', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsPrintActiveModalOpen(false)}
+                    className="btn btn-secondary"
+                    style={{ padding: '10px 18px' }}
+                  >
+                    Cancelar
+                  </button>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={handleConfirmExportActive}
+                      disabled={selectedCollabNames.size === 0}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '10px 18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        opacity: selectedCollabNames.size === 0 ? 0.5 : 1,
+                        cursor: selectedCollabNames.size === 0 ? 'not-allowed' : 'pointer'
+                      }}
+                      title="Baixar planilha Excel com as pessoas marcadas em ordem alfabética"
+                    >
+                      <Download size={16} /> Baixar Planilha Excel
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleConfirmPrintActive}
+                      disabled={selectedCollabNames.size === 0}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '10px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        opacity: selectedCollabNames.size === 0 ? 0.5 : 1,
+                        cursor: selectedCollabNames.size === 0 ? 'not-allowed' : 'pointer'
+                      }}
+                      title="Imprimir relatório em paisagem das ferramentas das pessoas marcadas"
+                    >
+                      <Printer size={16} /> Imprimir Selecionados (Paisagem)
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
