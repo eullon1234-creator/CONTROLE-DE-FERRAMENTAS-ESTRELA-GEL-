@@ -10,7 +10,8 @@ import {
   Moon,
   Hammer,
   Search,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
@@ -25,7 +26,8 @@ const Sidebar = ({
   handleInstallApp,
   isOpen = false,
   onClose = () => {},
-  onOpenSearch = () => {}
+  onOpenSearch = () => {},
+  onOpenAiAssistant = () => {}
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -243,6 +245,56 @@ const Sidebar = ({
               </button>
             );
           })}
+
+          {/* AI Assistant Menu Item */}
+          <button
+            onClick={() => {
+              onOpenAiAssistant();
+              onClose();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '11px 14px',
+              marginTop: '6px',
+              borderRadius: '8px',
+              border: '1px solid rgba(139, 92, 246, 0.4)',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.25) 100%)',
+              color: '#c4b5fd',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 600,
+              fontSize: '0.92rem',
+              textAlign: 'left',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(139, 92, 246, 0.15)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.4) 100%)';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.25) 100%)';
+              e.currentTarget.style.color = '#c4b5fd';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Sparkles size={18} color="#a78bfa" />
+              <span>Assistente IA</span>
+            </div>
+            <span style={{
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
+              color: '#ffffff'
+            }}>
+              GEMINI
+            </span>
+          </button>
         </nav>
 
         {/* User & Settings Footer */}

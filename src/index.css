@@ -611,3 +611,98 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0 !important;
   }
 }
+
+/* ==========================================================================
+   AI ASSISTANT CHAT STYLES
+   ========================================================================== */
+.ai-floating-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 900;
+}
+
+@media (max-width: 768px) {
+  .ai-floating-fab {
+    bottom: 76px !important;
+    right: 16px !important;
+    padding: 8px 14px !important;
+    font-size: 0.8rem !important;
+  }
+  .ai-chat-backdrop {
+    padding: 0 !important;
+  }
+  .ai-chat-window {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Typing Indicator Animation */
+.dot-flashing {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 5px;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-light);
+  animation: dot-flashing 1s infinite linear alternate;
+  animation-delay: 0.5s;
+  display: inline-block;
+}
+.dot-flashing::before, .dot-flashing::after {
+  content: "";
+  display: inline-block;
+  position: absolute;
+  top: 0;
+}
+.dot-flashing::before {
+  left: -12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 5px;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-light);
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 0s;
+}
+.dot-flashing::after {
+  left: 12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 5px;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-light);
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 1s;
+}
+
+@keyframes dot-flashing {
+  0% {
+    background-color: var(--color-primary-light);
+  }
+  50%, 100% {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

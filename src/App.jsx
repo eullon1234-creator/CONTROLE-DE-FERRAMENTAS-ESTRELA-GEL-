@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { auth } from './firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Menu, Search, Sun, Moon, Tag } from 'lucide-react';
+import { Menu, Search, Sun, Moon, Tag, Sparkles } from 'lucide-react';
 import logoImg from './assets/logo.png';
 
 // Component and page imports with Lazy Loading (Code Splitting)
@@ -12,6 +12,7 @@ import CommandPalette from './components/CommandPalette';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
 import QuickTagLookupModal from './components/QuickTagLookupModal';
 import MobileBottomNav from './components/MobileBottomNav';
+import AiAssistantModal from './components/AiAssistantModal';
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -32,10 +33,11 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
-  // Mobile Drawer, Quick Tag & Global Search States
+  // Mobile Drawer, Quick Tag, AI Assistant & Global Search States
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isTagLookupOpen, setIsTagLookupOpen] = useState(false);
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
 
   // Printing state variables
   const [printTerm, setPrintTerm] = useState(null);
@@ -251,6 +253,30 @@ const App = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* AI Assistant Button in Mobile Header */}
+          <button
+            onClick={() => setIsAiAssistantOpen(true)}
+            style={{
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.25) 100%)',
+              border: '1px solid rgba(139, 92, 246, 0.4)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              color: '#c4b5fd',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 700,
+              fontSize: '0.78rem'
+            }}
+            aria-label="Abrir Assistente IA"
+            title="Assistente IA"
+          >
+            <Sparkles size={15} color="#a78bfa" />
+            <span>IA</span>
+          </button>
+
           {/* Quick TAG button in mobile header */}
           <button
             onClick={() => setIsTagLookupOpen(true)}
@@ -325,6 +351,7 @@ const App = () => {
           isOpen={isMobileSidebarOpen}
           onClose={() => setIsMobileSidebarOpen(false)}
           onOpenSearch={() => setIsCommandPaletteOpen(true)}
+          onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
         />
 
         {/* Pages Container */}
@@ -538,6 +565,47 @@ const App = () => {
           </div>
         </div>
       )}
+
+      {/* Floating AI Assistant Action Button */}
+      <button
+        onClick={() => setIsAiAssistantOpen(true)}
+        className="ai-floating-fab no-print"
+        aria-label="Abrir Assistente Inteligente IA"
+        title="Assistente IA do Almoxarifado"
+        style={{
+          background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+          color: '#ffffff',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '30px',
+          padding: '10px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          boxShadow: '0 8px 24px rgba(124, 58, 237, 0.45)',
+          transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+          fontFamily: 'var(--font-heading)',
+          fontWeight: 700,
+          fontSize: '0.88rem'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)';
+          e.currentTarget.style.boxShadow = '0 12px 28px rgba(124, 58, 237, 0.65)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0) scale(1)';
+          e.currentTarget.style.boxShadow = '0 8px 24px rgba(124, 58, 237, 0.45)';
+        }}
+      >
+        <Sparkles size={18} color="#ffffff" />
+        <span>GEL IA</span>
+      </button>
+
+      {/* AI Assistant Modal Window */}
+      <AiAssistantModal 
+        isOpen={isAiAssistantOpen}
+        onClose={() => setIsAiAssistantOpen(false)}
+      />
 
     </div>
   );
