@@ -13,9 +13,10 @@ import {
   getDocs,
   getDoc
 } from 'firebase/firestore';
-import { Plus, Search, Edit3, Trash2, X, ShieldAlert, Cpu } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, ShieldAlert, Cpu, Download } from 'lucide-react';
 import ColumnFilterPopover from '../components/ColumnFilterPopover';
 import { classifyGroup } from '../utils/classifyGroup';
+import { exportEquipamentosExcel } from '../utils/exportExcel';
 import { useToast } from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import { logAuditAction } from '../utils/auditLogger';
@@ -392,6 +393,30 @@ const Equipamentos = () => {
     return 0;
   });
 
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  const handleExportFilteredExcel = async () => {
+    if (sortedEquipamentos.length === 0) {
+      toast.warning('Nenhum equipamento encontrado com os filtros atuais para baixar.');
+      return;
+    }
+
+    try {
+      setExportingExcel(true);
+      const itemsToExport = sortedEquipamentos.map(item => ({
+        ...item,
+        displayStatus: getDisplayStatus(item)
+      }));
+      await exportEquipamentosExcel(itemsToExport, termos);
+      toast.success(`${sortedEquipamentos.length} equipamento(s) exportado(s) com sucesso em Excel!`);
+    } catch (err) {
+      console.error('Erro ao exportar Excel:', err);
+      toast.error('Erro ao baixar planilha Excel: ' + err.message);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   return (
     <div className="page-container">
       {/* Header */}
@@ -403,9 +428,30 @@ const Equipamentos = () => {
           <h1 style={{ fontSize: '2.2rem', color: 'var(--text-primary)', marginTop: '4px' }}>Catálogo de Equipamentos</h1>
         </div>
 
-        <button onClick={handleOpenAdd} className="btn btn-primary">
-          <Plus size={18} /> Cadastrar Equipamento
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            onClick={handleExportFilteredExcel} 
+            className="btn btn-secondary"
+            disabled={exportingExcel || sortedEquipamentos.length === 0}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              padding: '10px 18px', 
+              borderRadius: '8px',
+              cursor: (exportingExcel || sortedEquipamentos.length === 0) ? 'not-allowed' : 'pointer',
+              opacity: sortedEquipamentos.length === 0 ? 0.6 : 1
+            }}
+            title="Baixar em Excel (.xlsx) apenas os equipamentos filtrados na tela"
+          >
+            <Download size={18} />
+            {exportingExcel ? 'Baixando Excel...' : 'Baixar Filtrados (Excel)'}
+          </button>
+
+          <button onClick={handleOpenAdd} className="btn btn-primary" style={{ padding: '10px 18px', borderRadius: '8px' }}>
+            <Plus size={18} /> Cadastrar Equipamento
+          </button>
+        </div>
       </div>
 
       {/* Toolbar / Filters */}

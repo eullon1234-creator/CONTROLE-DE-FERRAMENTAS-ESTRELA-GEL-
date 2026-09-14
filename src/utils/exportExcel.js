@@ -43,6 +43,7 @@ const makeStatusText = (status) => {
     'Em Conserto': '🟡 EM CONSERTO',
     Retornado: '⚫ RETORNADO',
     Cancelado: '🔴 CANCELADO',
+    Descartado: '🔴 DESCARTADO',
     Disponível: '🟢 DISPONÍVEL',
     Cautelado: '🔵 CAUTELADO',
     'Devolvido ao Fornecedor': '⚫ DEVOLVIDO AO FORNECEDOR',
@@ -74,7 +75,7 @@ const applyStatusStyle = (cell, text) => {
   } else if (upper.includes('CONSERTO') || upper.includes('MANUTENÇÃO') || upper.includes('MANUTENCAO') || upper.includes('ENVIADO')) {
     bg = 'FEF3C7'; // soft yellow
     fg = '78350F'; // dark yellow
-  } else if (upper.includes('CANCELADO')) {
+  } else if (upper.includes('CANCELADO') || upper.includes('DESCARTADO')) {
     bg = 'FDE8E8'; // soft red
     fg = '9B1C1C'; // dark red
   }
@@ -1004,3 +1005,141 @@ export async function exportOSDetailExcel(osList, colaboradores) {
     throw error;
   }
 }
+
+/**
+ * Exporta a lista de Equipamentos (filtrados e ordenados) para Excel (.xlsx).
+ * @param {Array} equipamentosList Lista de equipamentos filtrados
+ * @param {Array} termos Lista de termos para validação de status cautelado
+ */
+export async function exportEquipamentosExcel(equipamentosList, termos = []) {
+  try {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Controle de Ferramentaria — UHE Estrela';
+    wb.lastModifiedBy = 'Controle de Ferramentaria';
+    wb.created = new Date();
+    wb.modified = new Date();
+
+    const sheet = wb.addWorksheet('🔧 Equipamentos Filtrados');
+    setupSheetView(sheet);
+
+    const headers = [
+      'Nº',
+      'TAG',
+      'Descrição',
+      'Marca / Modelo',
+      'Categoria',
+      'Unidade',
+      'Tipo de Posse',
+      'Locador / Fornecedor',
+      'Qtd Total',
+      'Status',
+      'Setor',
+      'Observação'
+    ];
+
+    const headerRow = sheet.addRow(headers);
+    styleHeader(headerRow);
+
+    let totalQtd = 0;
+
+    equipamentosList.forEach((e, i) => {
+      const isCautelado = e.tag && (termos || []).some(t => t.status === 'ATIVO' && (t.tag || t.codEquipamento || '').toUpperCase().trim() === e.tag.toUpperCase().trim());
+      let statusText = e.displayStatus || e.status || 'Disponível';
+      if (statusText === 'Disponível' || statusText === 'ATIVO' || statusText === 'ATIVA') {
+        statusText = isCautelado ? 'Cautelado' : 'Disponível';
+      }
+      const statusVal = makeStatusText(statusText);
+      const qtd = Number(e.quantidadeTotal || 0);
+      totalQtd += qtd;
+
+      const posseStr = e.tipoPosse === 'Locada' 
+        ? `Locada${e.locador ? ` (${e.locador})` : ''}` 
+        : (e.tipoPosse || 'Própria');
+
+      const row = sheet.addRow([
+        i + 1,
+        e.tag || e.cod || e.id || '-',
+        e.descricao || '-',
+        e.marcaModelo || '-',
+        e.grupo || '-',
+        e.und || 'Unidade',
+        posseStr,
+        e.locador || '-',
+        qtd,
+        statusVal,
+        e.setor || 'Almoxarifado',
+        e.observacao || '-'
+      ]);
+
+      styleDataRow(row, i);
+
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(7).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(9).numFmt = '#,##0';
+      row.getCell(9).alignment = { vertical: 'middle', horizontal: 'center' };
+      
+      applyStatusStyle(row.getCell(10), statusVal);
+      
+      row.getCell(11).alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    // Linha de totalizadores
+    const totalRow = sheet.addRow([
+      'TOTAL',
+      `${equipamentosList.length} itens`,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      totalQtd,
+      '',
+      '',
+      ''
+    ]);
+    totalRow.height = 26;
+    totalRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+      cell.border = {
+        top: { style: 'medium', color: { argb: 'FF94A3B8' } },
+        bottom: { style: 'medium', color: { argb: 'FF94A3B8' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+    });
+    totalRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    totalRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' };
+    totalRow.getCell(9).numFmt = '#,##0';
+    totalRow.getCell(9).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    sheet.autoFilter = `A1:L${equipamentosList.length + 1}`;
+    autoWidth(sheet, [8, 16, 35, 20, 20, 12, 18, 22, 12, 18, 18, 30]);
+
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    const filename = `Equipamentos_Filtrados_${dateStr}.xlsx`;
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error('Erro ao exportar planilha de equipamentos filtrados:', error);
+    throw error;
+  }
+}
+
