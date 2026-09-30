@@ -591,6 +591,7 @@ const Equipamentos = () => {
                       onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, descricao: { ...prev.descricao, condition: cond } }))}
                       onSortChange={(dir) => setSortConfig({ key: 'descricao', direction: dir })}
                       currentSort={sortConfig.key === 'descricao' ? sortConfig.direction : null}
+                      align="left"
                     />
                   </th>
                   <th>
@@ -605,6 +606,7 @@ const Equipamentos = () => {
                       onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, marcaModelo: { ...prev.marcaModelo, condition: cond } }))}
                       onSortChange={(dir) => setSortConfig({ key: 'marcaModelo', direction: dir })}
                       currentSort={sortConfig.key === 'marcaModelo' ? sortConfig.direction : null}
+                      align="left"
                     />
                   </th>
                   <th>

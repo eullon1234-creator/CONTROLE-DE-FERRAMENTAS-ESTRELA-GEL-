@@ -22,6 +22,41 @@ const ColumnFilterPopover = ({
   // Buffered temporary states for Excel-like OK confirmation
   const [tempSelectedValues, setTempSelectedValues] = useState(selectedValues);
   const [tempConditionFilter, setTempConditionFilter] = useState(conditionFilter);
+  const [effectiveAlign, setEffectiveAlign] = useState(align);
+
+  // Auto-detect viewport boundaries so popover is never clipped on screen edges
+  useEffect(() => {
+    if (!isOpen || !popoverRef.current) return;
+
+    const checkPosition = () => {
+      if (!popoverRef.current) return;
+      const rect = popoverRef.current.getBoundingClientRect();
+      const popoverWidth = 270; // 260px width + safety margin
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+
+      // If configured or defaulting to right, but opening left would overflow (< 15px from viewport left edge)
+      if (align === 'right' && rect.right - popoverWidth < 15) {
+        setEffectiveAlign('left');
+      } 
+      // If configured to left, but opening right would overflow viewport right edge
+      else if (align === 'left' && rect.left + popoverWidth > viewportWidth - 15) {
+        setEffectiveAlign('right');
+      } else {
+        // Fallback checks for available space
+        if (align === 'right' && rect.right < popoverWidth) {
+          setEffectiveAlign('left');
+        } else if (align === 'left' && viewportWidth - rect.left < popoverWidth) {
+          setEffectiveAlign('right');
+        } else {
+          setEffectiveAlign(align);
+        }
+      }
+    };
+
+    checkPosition();
+    window.addEventListener('resize', checkPosition);
+    return () => window.removeEventListener('resize', checkPosition);
+  }, [isOpen, align]);
 
   // Toggle popover visibility
   const togglePopover = (e) => {
@@ -260,7 +295,7 @@ const ColumnFilterPopover = ({
         <div style={{
           position: 'absolute',
           top: '100%',
-          ...(align === 'left' ? { left: 0 } : { right: 0 }),
+          ...(effectiveAlign === 'left' ? { left: 0 } : { right: 0 }),
           marginTop: '8px',
           width: '260px',
           backgroundColor: 'var(--bg-card)',

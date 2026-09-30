@@ -1035,6 +1035,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                         onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, nOS: { ...prev.nOS, condition: cond } }))}
                         onSortChange={(dir) => setSortConfig({ key: 'nOS', direction: dir })}
                         currentSort={sortConfig.key === 'nOS' ? sortConfig.direction : null}
+                        align="left"
                       />
                     </th>
                     <th>
@@ -1049,6 +1050,8 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                         onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, dateEnvioStr: { ...prev.dateEnvioStr, condition: cond } }))}
                         onSortChange={(dir) => setSortConfig({ key: 'dateEnvioStr', direction: dir })}
                         currentSort={sortConfig.key === 'dateEnvioStr' ? sortConfig.direction : null}
+                        isDate={true}
+                        align="left"
                       />
                     </th>
                     <th>
@@ -1063,6 +1066,7 @@ const Consertos = ({ onPrintOS, onPrintRelatorio }) => {
                         onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, tag: { ...prev.tag, condition: cond } }))}
                         onSortChange={(dir) => setSortConfig({ key: 'tag', direction: dir })}
                         currentSort={sortConfig.key === 'tag' ? sortConfig.direction : null}
+                        align="left"
                       />
                     </th>
                     <th>

@@ -985,6 +985,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                         onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, descricaoMaterial: { ...prev.descricaoMaterial, condition: cond } }))}
                         onSortChange={(dir) => setSortConfig({ key: 'descricaoMaterial', direction: dir })}
                         currentSort={sortConfig.key === 'descricaoMaterial' ? sortConfig.direction : null}
+                        align="left"
                       />
                     </th>
                     <th>
@@ -999,6 +1000,7 @@ const Termos = ({ onPrintTerm, onPrintRelatorio }) => {
                         onConditionFilterChange={(cond) => setActiveFilters(prev => ({ ...prev, tag: { ...prev.tag, condition: cond } }))}
                         onSortChange={(dir) => setSortConfig({ key: 'tag', direction: dir })}
                         currentSort={sortConfig.key === 'tag' ? sortConfig.direction : null}
+                        align="left"
                       />
                     </th>
                     <th style={{ textAlign: 'center' }}>
